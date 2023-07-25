@@ -230,31 +230,37 @@ class CanvasLoader(BaseLoader):
         try:
             # Import the Canvas class
             from canvasapi import Canvas
+            from canvasapi.exceptions import CanvasException
         except ImportError:
             raise ImportError(
                 "Could not import canvasapi python package. "
                 "Please install it with `pip install canvasapi`."
             )
 
-        # Initialize a new Canvas object
-        canvas = Canvas(self.api_url, self.api_key)
+        try:
+            # Initialize a new Canvas object
+            canvas = Canvas(self.api_url, self.api_key)
 
-        course = canvas.get_course(self.course_id)
+            course = canvas.get_course(self.course_id)
 
-        # Access the course's name
-        print("Indexing: " + course.name)
-        print("")
+            # Access the course's name
+            print("Indexing: " + course.name)
+            print("")
 
-        # Load pages
-        page_documents = self.load_pages(course=course)
+            # Load pages
+            page_documents = self.load_pages(course=course)
 
-        # load announcements
-        announcement_documents = self.load_announcements(canvas=canvas, course=course)
+            # load announcements
+            announcement_documents = self.load_announcements(canvas=canvas, course=course)
 
-        # load assignments
-        assignment_documents = self.load_assignments(course=course)
+            # load assignments
+            assignment_documents = self.load_assignments(course=course)
 
-        # load files
-        file_documents = self.load_files(course=course)
+            # load files
+            file_documents = self.load_files(course=course)
 
-        return page_documents + announcement_documents + assignment_documents + file_documents
+            return page_documents + announcement_documents + assignment_documents + file_documents
+        except CanvasException as e:
+            print(e)
+
+        return []
