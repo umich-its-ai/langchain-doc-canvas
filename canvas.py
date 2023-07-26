@@ -7,10 +7,11 @@ from datetime import date
 
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
-from langchain.document_loaders.word_document import Docx2txtLoader
-from langchain.document_loaders.excel import UnstructuredExcelLoader
+
+from langchain.document_loaders import Docx2txtLoader
+from langchain.document_loaders import UnstructuredExcelLoader
+from langchain.document_loaders import UnstructuredMarkdownLoader
 from striprtf.striprtf import rtf_to_text
-from langchain.document_loaders.markdown import UnstructuredMarkdownLoader
 
 class CanvasLoader(BaseLoader):
     """Loading logic for Canvas Pages, Announcements, Assignments and Files."""
@@ -26,6 +27,9 @@ class CanvasLoader(BaseLoader):
         self.api_key = api_key
         self.course_id = course_id
         self.invalid_files = []
+
+        # TODO: append exceptions to this array
+        self.errors = []
 
     def load_pages(self, course) -> List[Document]:
         from canvasapi.exceptions import CanvasException
@@ -46,7 +50,7 @@ class CanvasLoader(BaseLoader):
                     metadata={ "title": page.title, "kind": "page", "page_id": page.page_id }
                 ))
         except CanvasException as e:
-            print(e)
+            self.errors.append({ "message": e.message[0]["message"], "entity_type": "page", "id": page.page_id })
 
         return page_documents
 
@@ -70,7 +74,7 @@ class CanvasLoader(BaseLoader):
                     metadata={ "title": announcement.title, "kind": "announcement", "announcement_id": announcement.id }
                 ))
         except CanvasException as e:
-            print(e)
+            self.errors.append({ "message": e.message[0]["message"], "entity_type": "announcement", "id": announcement.id })
 
         return announcement_documents
 
@@ -96,7 +100,7 @@ class CanvasLoader(BaseLoader):
                     metadata={ "name": assignment.name, "kind": "assignment", "assignment_id": assignment.id }
                 ))
         except CanvasException as e:
-            print(e)
+            self.errors.append({ "message": e.message[0]["message"], "entity_type": "assignment", "id": assignment.id })
 
         return assignment_documents
 
@@ -258,7 +262,7 @@ class CanvasLoader(BaseLoader):
                 else:
                     self.invalid_files.append(f"{file.filename} ({file_content_type})")
         except CanvasException as e:
-            print(e)
+            self.errors.append({ "message": e.message[0]["message"], "entity_type": "course", "id": course.id })
 
         return file_documents
 
@@ -298,6 +302,6 @@ class CanvasLoader(BaseLoader):
 
             return page_documents + announcement_documents + assignment_documents + file_documents
         except CanvasException as e:
-            print(e)
+            self.errors.append({ "message": e.message[0]["message"] })
 
         return []

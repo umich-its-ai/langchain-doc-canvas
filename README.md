@@ -47,7 +47,9 @@ documents = loader.load()
 print("\nDocuments:\n")
 print(documents)
 
-print("\nInvalid files:\n")
-print(loader.invalid_files)
+print("\nErrors:\n")
+print(loader.errors)
 print("")
 ```
+
+If errors are present, `loader.errors` will contain one list element per error. It will consist of an error message (key named `message`) and if the error pertains to a specific item within canvas, it will list the `entity_type` and the `id` of the resource where the exception occurred.
