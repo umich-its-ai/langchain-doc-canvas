@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='Canvas langchain integration',
+    name='canvas_langchain',
     version='0.1',
     description='A canvas langchain integration',
     long_description=open('README.md').read(),
