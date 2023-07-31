@@ -1,6 +1,7 @@
 """Loads Pages, Announcements, Assignments and Files from a Canvas Course site."""
 
 import tempfile
+import json
 from io import BytesIO
 from typing import List
 from datetime import date
@@ -50,7 +51,7 @@ class CanvasLoader(BaseLoader):
                     metadata={ "title": page.title, "kind": "page", "page_id": page.page_id }
                 ))
         except CanvasException as e:
-            self.errors.append({ "message": e.message[0]["message"], "entity_type": "page", "id": page.page_id })
+            self._error_logger(error=e, action="get_pages", entity_type="page", entity_id=page.page_id)
 
         return page_documents
 
@@ -74,7 +75,7 @@ class CanvasLoader(BaseLoader):
                     metadata={ "title": announcement.title, "kind": "announcement", "announcement_id": announcement.id }
                 ))
         except CanvasException as e:
-            self.errors.append({ "message": e.message[0]["message"], "entity_type": "announcement", "id": announcement.id })
+            self._error_logger(error=e, action="get_announcements", entity_type="announcement", entity_id=announcement.id)
 
         return announcement_documents
 
@@ -100,7 +101,7 @@ class CanvasLoader(BaseLoader):
                     metadata={ "name": assignment.name, "kind": "assignment", "assignment_id": assignment.id }
                 ))
         except CanvasException as e:
-            self.errors.append({ "message": e.message[0]["message"], "entity_type": "assignment", "id": assignment.id })
+            self._error_logger(error=e, action="get_assignments", entity_type="assignment", entity_id=assignment.id)
 
         return assignment_documents
 
@@ -211,6 +212,13 @@ class CanvasLoader(BaseLoader):
 
         return docs
 
+    def _error_logger(self, error, action, entity_type, entity_id) -> None:
+        if isinstance(error.message, str):
+            message_json = json.loads(error.message)
+            self.errors.append({ "message": message_json["errors"][0]["message"], "action": action, "entity_type": entity_type, "entity_id": entity_id })
+        else:
+            self.errors.append({ "message": error.message[0]["message"], "action": action, "entity_type": entity_type, "entity_id": entity_id })
+
     def load_files(self, course) -> List[Document]:
         from canvasapi.exceptions import CanvasException
 
@@ -262,12 +270,15 @@ class CanvasLoader(BaseLoader):
                 else:
                     self.invalid_files.append(f"{file.filename} ({file_content_type})")
         except CanvasException as e:
-            self.errors.append({ "message": e.message[0]["message"], "entity_type": "course", "id": course.id })
+            self._error_logger(error=e, action="get_files", entity_type="course", entity_id=course.id)
 
         return file_documents
 
     def load(self) -> List[Document]:
         """Load documents."""
+
+        docs = []
+
         try:
             # Import the Canvas class
             from canvasapi import Canvas
@@ -288,20 +299,36 @@ class CanvasLoader(BaseLoader):
             print(f"Indexing: {course.name}")
             print("")
 
+            # Checking to see which tools are available?
+            tabs = course.get_tabs()
+
+            avaiable_tabs = []
+
+            for tab in tabs:
+                avaiable_tabs.append(tab.id)
+
             # Load pages
-            page_documents = self.load_pages(course=course)
+            if "page" in avaiable_tabs:
+                page_documents = self.load_pages(course=course)
+                docs = docs + page_documents
 
             # load announcements
-            announcement_documents = self.load_announcements(canvas=canvas, course=course)
+            if "announcements" in avaiable_tabs:
+                announcement_documents = self.load_announcements(canvas=canvas, course=course)
+                docs = docs + announcement_documents
 
             # load assignments
-            assignment_documents = self.load_assignments(course=course)
+            if "assignments" in avaiable_tabs:
+                assignment_documents = self.load_assignments(course=course)
+                docs = docs + assignment_documents
 
             # load files
-            file_documents = self.load_files(course=course)
+            if "files" in avaiable_tabs:
+                file_documents = self.load_files(course=course)
+                docs = docs + file_documents
 
-            return page_documents + announcement_documents + assignment_documents + file_documents
+            return docs
         except CanvasException as e:
-            self.errors.append({ "message": e.message[0]["message"] })
+            self._error_logger(error=e, action="get_course", entity_type="course", entity_id=self.course_id)
 
-        return []
+        return docs
