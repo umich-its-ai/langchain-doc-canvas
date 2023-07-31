@@ -37,10 +37,10 @@ class CanvasLoader(BaseLoader):
         self.invalid_files = []
         self.indexed_items = []
 
-        # TODO: append exceptions to this array
         self.errors = []
 
     def load_pages(self, course) -> List[Document]:
+        """Loads all published pages from a canvas course."""
         from canvasapi.exceptions import CanvasException
 
         page_documents = []
@@ -55,12 +55,13 @@ class CanvasLoader(BaseLoader):
                 if f"Page:{page.page_id}" not in self.indexed_items:
                     page_documents.append(self.load_page(page))
                     self.indexed_items.append(f"Page:{page.page_id}")
-        except CanvasException as e:
-            self._error_logger(error=e, action="get_pages", entity_type="page", entity_id=page.page_id)
+        except CanvasException as error:
+            self._error_logger(error=error, action="get_pages", entity_type="page", entity_id=page.page_id)
 
         return page_documents
 
     def load_page(self, page) -> List[Document]:
+        """Load a specific page."""
         page_body_text = self._get_html_as_string(page.body)
 
         return [Document(
@@ -69,6 +70,7 @@ class CanvasLoader(BaseLoader):
         )]
 
     def load_announcements(self, canvas, course) -> List[Document]:
+        """Loads all announcements from a canvas course."""
         from canvasapi.exceptions import CanvasException
 
         announcement_documents = []
@@ -87,12 +89,13 @@ class CanvasLoader(BaseLoader):
                     page_content=page_body_text,
                     metadata={ "title": announcement.title, "kind": "announcement", "announcement_id": announcement.id }
                 ))
-        except CanvasException as e:
-            self._error_logger(error=e, action="get_announcements", entity_type="announcement", entity_id=announcement.id)
+        except CanvasException as error:
+            self._error_logger(error=error, action="get_announcements", entity_type="announcement", entity_id=announcement.id)
 
         return announcement_documents
 
     def load_assignments(self, course) -> List[Document]:
+        """Loads all assignments from a canvas course."""
         from canvasapi.exceptions import CanvasException
 
         assignment_documents = []
@@ -104,12 +107,13 @@ class CanvasLoader(BaseLoader):
                 if f"Assignment:{assignment.id}" not in self.indexed_items:
                     assignment_documents.append(self.load_assignment(assignment))
                     self.indexed_items.append(f"Assignment:{assignment.id}")
-        except CanvasException as e:
-            self._error_logger(error=e, action="get_assignments", entity_type="assignment", entity_id=assignment.id)
+        except CanvasException as error:
+            self._error_logger(error=error, action="get_assignments", entity_type="assignment", entity_id=assignment.id)
 
         return assignment_documents
 
     def load_assignment(self, assignment) -> List[Document]:
+        """Load a specific assignment."""
         if assignment.description:
             assignment_description = self._get_html_as_string(assignment.description)
             assignment_description = f" Assignment Description: {assignment_description}\n\n"
@@ -124,15 +128,14 @@ class CanvasLoader(BaseLoader):
         )]
 
     def _get_html_as_string(self, html) -> str:
-
         try:
             # Import the html parser class
             from bs4 import BeautifulSoup
-        except ImportError:
+        except ImportError as exc:
             raise ImportError(
                 "Could not import beautifulsoup4 python package. "
                 "Please install it with `pip install beautifulsoup4`."
-            )
+            ) from exc
 
         html_string = BeautifulSoup(html, "lxml").text.strip()
 
@@ -166,11 +169,11 @@ class CanvasLoader(BaseLoader):
         try:
             # Import PDF parser class
             from PyPDF2 import PdfReader
-        except ImportError:
+        except ImportError as exc:
             raise ImportError(
                 "Could not import PyPDF2 python package. "
                 "Please install it with `pip install PyPDF2`."
-            )
+            ) from exc
 
         file_contents = file.get_contents(binary=True)
         pdf_reader = PdfReader(BytesIO(file_contents))
@@ -253,6 +256,7 @@ class CanvasLoader(BaseLoader):
             self.errors.append({ "message": error.message[0]["message"], "action": action, "entity_type": entity_type, "entity_id": entity_id })
 
     def load_files(self, course) -> List[Document]:
+        """Loads all files from a canvas course."""
         from canvasapi.exceptions import CanvasException
 
         file_documents = []
@@ -264,12 +268,13 @@ class CanvasLoader(BaseLoader):
                 if f"File:{file.id}" not in self.indexed_items:
                     file_documents.append(self.load_file(file))
                     self.indexed_items.append(f"File:{file.id}")
-        except CanvasException as e:
-            self._error_logger(error=e, action="get_files", entity_type="course", entity_id=course.id)
+        except CanvasException as error:
+            self._error_logger(error=error, action="get_files", entity_type="course", entity_id=course.id)
 
         return file_documents
 
     def load_file(self, file) -> List[Document]:
+        """Load a specific file."""
         file_documents = []
 
         file_content_type = getattr(file, "content-type")
@@ -303,7 +308,7 @@ class CanvasLoader(BaseLoader):
             elif file_content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
                 file_documents = file_documents + self._load_docx_file(file)
 
-            elif file_content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" or file_content_type == "application/vnd.ms-excel":
+            elif file_content_type in [ "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel" ]:
                 file_documents = file_documents + self._load_excel_file(file)
 
             elif file_content_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation":
@@ -320,6 +325,7 @@ class CanvasLoader(BaseLoader):
         return file_documents
 
     def load_url(self, url) -> List[Document]:
+        """Load a url."""
         loader = UnstructuredURLLoader(urls=[ url ])
         url_docs = loader.load()
 
@@ -327,7 +333,8 @@ class CanvasLoader(BaseLoader):
 
         return url_docs
 
-    def load_modules(self, canvas, course) -> List[Document]:
+    def load_modules(self, course) -> List[Document]:
+        """Loads all modules from a canvas course."""
         from canvasapi.exceptions import CanvasException
 
         module_documents = []
@@ -347,8 +354,8 @@ class CanvasLoader(BaseLoader):
                                 page = course.get_page(module_item.page_url)
                                 module_documents.append(self.load_page(page))
                                 self.indexed_items.append(f"Page:{module_item.page_url}")
-                            except CanvasException as e:
-                                self._error_logger(error=e, action="get_page", entity_type="page", entity_id=module_item.page_url)
+                            except CanvasException as error:
+                                self._error_logger(error=error, action="get_page", entity_type="page", entity_id=module_item.page_url)
                     elif module_item.type == "Assignment":
                         # print(f"  Indexing assignment {module_item.title} ({module_item.content_id})")
 
@@ -357,8 +364,8 @@ class CanvasLoader(BaseLoader):
                                 assignment = course.get_assignment(module_item.content_id)
                                 module_documents.append(self.load_assignment(assignment))
                                 self.indexed_items.append(f"Assignment:{module_item.content_id}")
-                            except CanvasException as e:
-                                self._error_logger(error=e, action="get_assignment", entity_type="assignment", entity_id=module_item.content_id)
+                            except CanvasException as error:
+                                self._error_logger(error=error, action="get_assignment", entity_type="assignment", entity_id=module_item.content_id)
                     elif module_item.type == "File":
                         # print(f"  Indexing file {module_item.title} ({module_item.content_id})")
 
@@ -367,22 +374,22 @@ class CanvasLoader(BaseLoader):
                                 file = course.get_file(module_item.content_id)
                                 module_documents.append(self.load_file(file))
                                 self.indexed_items.append(f"File:{module_item.content_id}")
-                            except CanvasException as e:
-                                self._error_logger(error=e, action="get_file", entity_type="file", entity_id=module_item.content_id)
-                    elif module_item.type == "ExternalUrl" and self.index_external_urls == True:
+                            except CanvasException as error:
+                                self._error_logger(error=error, action="get_file", entity_type="file", entity_id=module_item.content_id)
+                    elif module_item.type == "ExternalUrl" and self.index_external_urls is True:
                         # print(f"  Indexing file {module_item.title} ({module_item.external_url})")
 
                         if f"ExternalUrl:{module_item.external_url}" not in self.indexed_items:
                             try:
                                 module_documents.append(self.load_url(url=module_item.external_url))
                                 self.indexed_items.append(f"ExternalUrl:{module_item.external_url}")
-                            except CanvasException as e:
-                                self._error_logger(error=e, action="load_url", entity_type="externalurl", entity_id=module_item.external_url)
+                            except CanvasException as error:
+                                self._error_logger(error=error, action="load_url", entity_type="externalurl", entity_id=module_item.external_url)
                     else:
                         print(f"  Module Item {module_item.title} is an unsupported type ({module_item.type})")
 
-        except CanvasException as e:
-            self._error_logger(error=e, action="get_modules", entity_type="course", entity_id=course.id)
+        except CanvasException as error:
+            self._error_logger(error=error, action="get_modules", entity_type="course", entity_id=course.id)
 
         return module_documents
 
@@ -395,11 +402,11 @@ class CanvasLoader(BaseLoader):
             # Import the Canvas class
             from canvasapi import Canvas
             from canvasapi.exceptions import CanvasException
-        except ImportError:
+        except ImportError as exc:
             raise ImportError(
                 "Could not import canvasapi python package. "
                 "Please install it with `pip install canvasapi`."
-            )
+            ) from exc
 
         try:
             # Initialize a new Canvas object
@@ -421,7 +428,7 @@ class CanvasLoader(BaseLoader):
 
             # load modules
             if "modules" in available_tabs:
-                module_documents = self.load_modules(canvas=canvas, course=course)
+                module_documents = self.load_modules(course=course)
                 docs = docs + module_documents
 
             # Load pages
@@ -445,7 +452,7 @@ class CanvasLoader(BaseLoader):
                 docs = docs + file_documents
 
             return docs
-        except CanvasException as e:
-            self._error_logger(error=e, action="get_course", entity_type="course", entity_id=self.course_id)
+        except CanvasException as error:
+            self._error_logger(error=error, action="get_course", entity_type="course", entity_id=self.course_id)
 
         return docs
