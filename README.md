@@ -2,10 +2,10 @@
 
 Features:
 
-Indexes Canvas Pages, Announcements, Assignments and Files
+Indexes Canvas Modules, Pages, Announcements, Assignments and Files
 
 The following file types are supported:
-  `md` `htm` `html` `docx` `xls` `xlsx` `pdf` `rtf` `txt`
+  `md` `htm` `html` `docx` `xls` `xlsx` `pptx` `pdf` `rtf` `txt`
 
 (`doc` support would require libreoffice)
 
