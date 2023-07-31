@@ -16,3 +16,7 @@ print("")
 print("\nErrors:\n")
 print(loader.errors)
 print("")
+
+print("\nIndexed:\n")
+print(loader.indexed_items)
+print("")

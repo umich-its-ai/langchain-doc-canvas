@@ -45,8 +45,16 @@ documents = loader.load()
 print("\nDocuments:\n")
 print(documents)
 
+print("\nInvalid files:\n")
+print(loader.invalid_files)
+print("")
+
 print("\nErrors:\n")
 print(loader.errors)
+print("")
+
+print("\nIndexed:\n")
+print(loader.indexed_items)
 print("")
 ```
 
