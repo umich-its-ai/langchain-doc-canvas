@@ -1,4 +1,4 @@
-from canvas import CanvasLoader
+from canvas_langchain.canvas import CanvasLoader
 
 loader = CanvasLoader(
 	api_url = "https://CANVAS_API_URL_GOES_HERE",

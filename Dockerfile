@@ -4,7 +4,7 @@ COPY ./requirements.txt .
 
 RUN pip install -r requirements.txt
 
-COPY ./canvas.py .
+COPY ./canvas_langchain/ ./canvas_langchain/
 COPY ./canvas-test.py .
 
 CMD [ "python", "./canvas-test.py" ]

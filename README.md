@@ -34,7 +34,7 @@ pip install -r requirements.txt
 ## Usage example:
 
 ```python
-from canvas import CanvasLoader
+from canvas_langchain.canvas import CanvasLoader
 
 loader = CanvasLoader(
 	api_url = "https://canvas.instructure.com",
