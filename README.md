@@ -9,11 +9,11 @@ The following file types are supported:
 
 (`doc` support would require libreoffice)
 
-## Running locally
+## Running locally (development)
 
-You can do the install as described below, or build/run the provider dockerfile.
+You can build/run the provided Dockerfile, or install dependencies as described below
 
-## Docker
+### Docker
 
 Edit canvas-test.py, fill in the correct api_url, api_key, and course_id.
 
@@ -23,9 +23,7 @@ Run (this also builds docker):
 docker run -it $(docker build -q .)
 ```
 
-## Installation
-
-Install dependencies:
+### Install Dependencies
 
 ```bash
 pip install -r requirements.txt
