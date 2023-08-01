@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='canvas_langchain',
-    version='0.1',
+    version='0.2',
     description='A canvas langchain integration',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
@@ -12,6 +12,7 @@ setup(
     packages=find_packages(),
     classifiers=[
         'Development Status :: 3 - Alpha',
+        'License :: OSI Approved :: GNU General Public License (GPL)'
     ],
     install_requires=[
         'langchain',
@@ -20,6 +21,8 @@ setup(
         'beautifulsoup4',
         'lxml',
         'PyPDF2',
+        'docx2txt',
         'striprtf'
     ],
+    python_requires='>=3.8.1',
 )
