@@ -7,7 +7,7 @@ Indexes Canvas Modules, Pages, Announcements, Assignments and Files
 The following file types are supported:
   `md` `htm` `html` `docx` `xls` `xlsx` `pptx` `pdf` `rtf` `txt`
 
-(`doc` support would require libreoffice)
+(`doc` support would require libreoffice, so has not been implemented in this library)
 
 ## Running locally (development)
 
@@ -58,4 +58,4 @@ print(loader.indexed_items)
 print("")
 ```
 
-If errors are present, `loader.errors` will contain one list element per error. It will consist of an error message (key named `message`) and if the error pertains to a specific item within canvas, it will list the `entity_type` and the `id` of the resource where the exception occurred.
+If errors are present, `loader.errors` will contain one list element per error. It will consist of an error message (key named `message`) and if the error pertains to a specific item within canvas, it will list the `entity_type` and the `entity_id` of the resource where the exception occurred.
