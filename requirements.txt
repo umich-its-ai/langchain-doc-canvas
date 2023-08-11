@@ -6,3 +6,7 @@ lxml
 PyPDF2
 striprtf
 docx2txt
+pandas
+openpyxl
+xlrd
+markdown
