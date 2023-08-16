@@ -53,7 +53,7 @@ class CanvasLoader(BaseLoader):
 
             for page in pages:
                 if f"Page:{page.page_id}" not in self.indexed_items:
-                    page_documents.append(self.load_page(page))
+                    page_documents = page_documents + self.load_page(page)
                     self.indexed_items.append(f"Page:{page.page_id}")
         except CanvasException as error:
             self._error_logger(error=error, action="get_pages", entity_type="page", entity_id=page.page_id)
@@ -105,7 +105,7 @@ class CanvasLoader(BaseLoader):
 
             for assignment in assignments:
                 if f"Assignment:{assignment.id}" not in self.indexed_items:
-                    assignment_documents.append(self.load_assignment(assignment))
+                    assignment_documents = assignment_documents + self.load_assignment(assignment)
                     self.indexed_items.append(f"Assignment:{assignment.id}")
         except CanvasException as error:
             self._error_logger(error=error, action="get_assignments", entity_type="assignment", entity_id=assignment.id)
@@ -160,7 +160,7 @@ class CanvasLoader(BaseLoader):
     def _load_rtf_file(self, file) -> List[Document]:
         file_contents = file.get_contents(binary=False)
 
-        return[Document(
+        return [Document(
             page_content=rtf_to_text(file_contents).strip(),
             metadata={ "filename": file.filename, "kind": "file", "file_id": file.id }
         )]
@@ -266,7 +266,7 @@ class CanvasLoader(BaseLoader):
 
             for file in files:
                 if f"File:{file.id}" not in self.indexed_items:
-                    file_documents.append(self.load_file(file))
+                    file_documents + file_documents + self.load_file(file)
                     self.indexed_items.append(f"File:{file.id}")
         except CanvasException as error:
             self._error_logger(error=error, action="get_files", entity_type="course", entity_id=course.id)
@@ -329,8 +329,6 @@ class CanvasLoader(BaseLoader):
         loader = UnstructuredURLLoader(urls=[ url ])
         url_docs = loader.load()
 
-        print(url_docs)
-
         return url_docs
 
     def load_modules(self, course) -> List[Document]:
@@ -352,7 +350,7 @@ class CanvasLoader(BaseLoader):
                         if f"Page:{module_item.page_url}" not in self.indexed_items:
                             try:
                                 page = course.get_page(module_item.page_url)
-                                module_documents.append(self.load_page(page))
+                                module_documents = module_documents + self.load_page(page)
                                 self.indexed_items.append(f"Page:{module_item.page_url}")
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_page", entity_type="page", entity_id=module_item.page_url)
@@ -362,7 +360,7 @@ class CanvasLoader(BaseLoader):
                         if f"Assignment:{module_item.content_id}" not in self.indexed_items:
                             try:
                                 assignment = course.get_assignment(module_item.content_id)
-                                module_documents.append(self.load_assignment(assignment))
+                                module_documents = module_documents + self.load_assignment(assignment)
                                 self.indexed_items.append(f"Assignment:{module_item.content_id}")
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_assignment", entity_type="assignment", entity_id=module_item.content_id)
@@ -372,7 +370,7 @@ class CanvasLoader(BaseLoader):
                         if f"File:{module_item.content_id}" not in self.indexed_items:
                             try:
                                 file = course.get_file(module_item.content_id)
-                                module_documents.append(self.load_file(file))
+                                module_documents = module_documents + self.load_file(file)
                                 self.indexed_items.append(f"File:{module_item.content_id}")
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_file", entity_type="file", entity_id=module_item.content_id)
@@ -381,7 +379,7 @@ class CanvasLoader(BaseLoader):
 
                         if f"ExternalUrl:{module_item.external_url}" not in self.indexed_items:
                             try:
-                                module_documents.append(self.load_url(url=module_item.external_url))
+                                module_documents = module_documents + self.load_url(url=module_item.external_url)
                                 self.indexed_items.append(f"ExternalUrl:{module_item.external_url}")
                             except CanvasException as error:
                                 self._error_logger(error=error, action="load_url", entity_type="externalurl", entity_id=module_item.external_url)
