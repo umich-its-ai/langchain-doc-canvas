@@ -146,7 +146,7 @@ class CanvasLoader(BaseLoader):
 
         return [Document(
             page_content=file_contents.strip(),
-            metadata={ "filename": file.filename, "kind": "file", "file_id": file.id }
+            metadata={ "source": file.filename, "kind": "file", "file_id": file.id }
         )]
 
     def _load_html_file(self, file) -> List[Document]:
@@ -154,7 +154,7 @@ class CanvasLoader(BaseLoader):
 
         return [Document(
             page_content=self._get_html_as_string(file_contents),
-            metadata={ "filename": file.filename, "kind": "file", "file_id": file.id }
+            metadata={ "source": file.filename, "kind": "file", "file_id": file.id }
         )]
 
     def _load_rtf_file(self, file) -> List[Document]:
@@ -162,7 +162,7 @@ class CanvasLoader(BaseLoader):
 
         return [Document(
             page_content=rtf_to_text(file_contents).strip(),
-            metadata={ "filename": file.filename, "kind": "file", "file_id": file.id }
+            metadata={ "source": file.filename, "kind": "file", "file_id": file.id }
         )]
 
     def _load_pdf_file(self, file) -> List[Document]:
@@ -183,7 +183,7 @@ class CanvasLoader(BaseLoader):
         for i, page in enumerate(pdf_reader.pages):
             docs.append(Document(
                 page_content=page.extract_text(),
-                metadata={ "filename": file.filename, "kind": "file", "file_id": file.id, "page": i }
+                metadata={ "source": file.filename, "kind": "file", "file_id": file.id, "page": i }
             ))
 
         return docs
