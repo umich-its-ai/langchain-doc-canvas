@@ -266,7 +266,7 @@ class CanvasLoader(BaseLoader):
 
             for file in files:
                 if f"File:{file.id}" not in self.indexed_items:
-                    file_documents + file_documents + self.load_file(file)
+                    file_documents = file_documents + self.load_file(file)
                     self.indexed_items.append(f"File:{file.id}")
         except CanvasException as error:
             self._error_logger(error=error, action="get_files", entity_type="course", entity_id=course.id)
@@ -448,6 +448,10 @@ class CanvasLoader(BaseLoader):
             if "files" in available_tabs:
                 file_documents = self.load_files(course=course)
                 docs = docs + file_documents
+
+            # Replace null character with space
+            for doc in docs:
+                doc.page_content = doc.page_content.replace('\x00', ' ')
 
             return docs
         except CanvasException as error:
