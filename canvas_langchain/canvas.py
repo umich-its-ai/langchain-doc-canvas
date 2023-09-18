@@ -4,7 +4,8 @@ import tempfile
 import json
 from io import BytesIO
 from typing import List
-from datetime import date
+from datetime import date, datetime
+import pytz
 
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
@@ -62,12 +63,15 @@ class CanvasLoader(BaseLoader):
 
     def load_page(self, page) -> List[Document]:
         """Load a specific page."""
-        page_body_text = self._get_html_as_string(page.body)
+        try:
+            page_body_text = self._get_html_as_string(page.body)
 
-        return [Document(
-            page_content=page_body_text.strip(),
-            metadata={ "title": page.title, "kind": "page", "page_id": page.page_id }
-        )]
+            return [Document(
+                page_content=page_body_text.strip(),
+                metadata={ "title": page.title, "kind": "page", "page_id": page.page_id }
+            )]
+        except AttributeError:
+            return []
 
     def load_announcements(self, canvas, course) -> List[Document]:
         """Loads all announcements from a canvas course."""
@@ -128,6 +132,7 @@ class CanvasLoader(BaseLoader):
         )]
 
     def _get_html_as_string(self, html) -> str:
+        """Use BeautifulSoup 4 to parse a html string and return a simplified string."""
         try:
             # Import the html parser class
             from bs4 import BeautifulSoup
@@ -257,7 +262,7 @@ class CanvasLoader(BaseLoader):
 
     def load_files(self, course) -> List[Document]:
         """Loads all files from a canvas course."""
-        from canvasapi.exceptions import CanvasException
+        from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
 
         file_documents = []
 
@@ -265,9 +270,14 @@ class CanvasLoader(BaseLoader):
             files = course.get_files()
 
             for file in files:
-                if f"File:{file.id}" not in self.indexed_items:
-                    file_documents = file_documents + self.load_file(file)
-                    self.indexed_items.append(f"File:{file.id}")
+                try:
+                    if f"File:{file.id}" not in self.indexed_items:
+                        file_documents = file_documents + self.load_file(file)
+                        self.indexed_items.append(f"File:{file.id}")
+                except ResourceDoesNotExist:
+                    # This will happen when the file is part of a module that is hidden
+                    file_content_type = getattr(file, "content-type")
+                    self.invalid_files.append(f"{file.filename} ({file_content_type})")
         except CanvasException as error:
             self._error_logger(error=error, action="get_files", entity_type="course", entity_id=course.id)
 
@@ -333,7 +343,7 @@ class CanvasLoader(BaseLoader):
 
     def load_modules(self, course) -> List[Document]:
         """Loads all modules from a canvas course."""
-        from canvasapi.exceptions import CanvasException
+        from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
 
         module_documents = []
 
@@ -341,6 +351,17 @@ class CanvasLoader(BaseLoader):
             modules = course.get_modules()
 
             for module in modules:
+                locked = False
+
+                if module.unlock_at:
+                    unlock_at_datetime = datetime.strptime(module.unlock_at, '%Y-%m-%dT%H:%M:%SZ')
+                    unlock_at_datetime = unlock_at_datetime.replace(tzinfo=pytz.UTC)
+                    epoch_time = int(unlock_at_datetime.timestamp())
+                    current_epoch_time = int(datetime.now().timestamp())
+
+                    if current_epoch_time < epoch_time:
+                        locked = True
+
                 module_items = module.get_module_items(include=["content_details"])
 
                 for module_item in module_items:
@@ -348,6 +369,10 @@ class CanvasLoader(BaseLoader):
                         # print(f"  Indexing page {module_item.title} ({module_item.page_url})")
 
                         if f"Page:{module_item.page_url}" not in self.indexed_items:
+                            if locked:
+                                # Don't try indexing page
+                                continue
+
                             try:
                                 page = course.get_page(module_item.page_url)
                                 module_documents = module_documents + self.load_page(page)
@@ -372,9 +397,17 @@ class CanvasLoader(BaseLoader):
                                 file = course.get_file(module_item.content_id)
                                 module_documents = module_documents + self.load_file(file)
                                 self.indexed_items.append(f"File:{module_item.content_id}")
+                            except ResourceDoesNotExist:
+                                # This will happen when the file is part of a module that is hidden
+                                file_content_type = getattr(file, "content-type")
+                                self.invalid_files.append(f"{file.filename} ({file_content_type})")
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_file", entity_type="file", entity_id=module_item.content_id)
                     elif module_item.type == "ExternalUrl" and self.index_external_urls is True:
+                        if locked:
+                            # Don't try indexing external URL
+                            continue
+
                         # print(f"  Indexing file {module_item.title} ({module_item.external_url})")
 
                         if f"ExternalUrl:{module_item.external_url}" not in self.indexed_items:

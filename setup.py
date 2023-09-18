@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='canvas_langchain',
-    version='0.6',
+    version='0.7',
     description='A canvas langchain integration',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
@@ -26,7 +26,8 @@ setup(
         'pandas',
         'openpyxl',
         'xlrd',
-        'markdown'
+        'markdown',
+        'pytz'
     ],
     python_requires='>=3.8.1',
 )

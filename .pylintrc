@@ -355,7 +355,7 @@ single-line-if-stmt=no
 
 # List of modules that can be imported at any level, not just the top level
 # one.
-allow-any-import-level=canvasapi.exceptions.CanvasException,bs4.BeautifulSoup,PyPDF2.PdfReader,canvasapi.Canvas
+allow-any-import-level=canvasapi.exceptions.CanvasException,bs4.BeautifulSoup,PyPDF2.PdfReader,canvasapi.Canvas,canvasapi.exceptions.ResourceDoesNotExist
 
 # Allow explicit reexports by alias from a package __init__.
 allow-reexport-from-package=no
