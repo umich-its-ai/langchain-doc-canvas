@@ -33,12 +33,19 @@ class CanvasLoader(BaseLoader):
         self.api_url = api_url
         self.api_key = api_key
         self.course_id = course_id
+        self.returned_course_id = 0
         self.index_external_urls = index_external_urls
 
         self.invalid_files = []
         self.indexed_items = []
 
         self.errors = []
+
+    def _get_page_url(self, page_url) -> str:
+        return f"{self.api_url}/courses/{self.returned_course_id}/pages/{page_url}"
+
+    def _get_file_url(self, file_id) -> str:
+        return f"{self.api_url}/courses/{self.returned_course_id}/files/{file_id}"
 
     def load_pages(self, course) -> List[Document]:
         """Loads all published pages from a canvas course."""
@@ -68,7 +75,7 @@ class CanvasLoader(BaseLoader):
 
             return [Document(
                 page_content=page_body_text.strip(),
-                metadata={ "title": page.title, "kind": "page", "page_id": page.page_id }
+                metadata={ "filename": page.title, "source": self._get_page_url(page.url), "kind": "page", "page_id": page.page_id }
             )]
         except AttributeError:
             return []
@@ -91,7 +98,7 @@ class CanvasLoader(BaseLoader):
 
                 announcement_documents.append(Document(
                     page_content=page_body_text,
-                    metadata={ "title": announcement.title, "kind": "announcement", "announcement_id": announcement.id }
+                    metadata={ "filename": announcement.title, "source": announcement.html_url, "kind": "announcement", "announcement_id": announcement.id }
                 ))
         except CanvasException as error:
             self._error_logger(error=error, action="get_announcements", entity_type="announcement", entity_id=announcement.id)
@@ -128,7 +135,7 @@ class CanvasLoader(BaseLoader):
 
         return [Document(
             page_content=assignment_content,
-            metadata={ "name": assignment.name, "kind": "assignment", "assignment_id": assignment.id }
+            metadata={ "filename": assignment.name, "source": assignment.html_url, "kind": "assignment", "assignment_id": assignment.id }
         )]
 
     def _get_html_as_string(self, html) -> str:
@@ -151,7 +158,7 @@ class CanvasLoader(BaseLoader):
 
         return [Document(
             page_content=file_contents.strip(),
-            metadata={ "source": file.filename, "kind": "file", "file_id": file.id }
+            metadata={ "filename": file.filename, "source": file.url, "kind": "file", "file_id": file.id }
         )]
 
     def _load_html_file(self, file) -> List[Document]:
@@ -159,7 +166,7 @@ class CanvasLoader(BaseLoader):
 
         return [Document(
             page_content=self._get_html_as_string(file_contents),
-            metadata={ "source": file.filename, "kind": "file", "file_id": file.id }
+            metadata={ "filename": file.filename, "source": file.url, "kind": "file", "file_id": file.id }
         )]
 
     def _load_rtf_file(self, file) -> List[Document]:
@@ -167,7 +174,7 @@ class CanvasLoader(BaseLoader):
 
         return [Document(
             page_content=rtf_to_text(file_contents).strip(),
-            metadata={ "source": file.filename, "kind": "file", "file_id": file.id }
+            metadata={ "filename": file.filename, "source": file.url, "kind": "file", "file_id": file.id }
         )]
 
     def _load_pdf_file(self, file) -> List[Document]:
@@ -188,7 +195,7 @@ class CanvasLoader(BaseLoader):
         for i, page in enumerate(pdf_reader.pages):
             docs.append(Document(
                 page_content=page.extract_text(),
-                metadata={ "source": file.filename, "kind": "file", "file_id": file.id, "page": i }
+                metadata={ "filename": file.filename, "source": self._get_file_url(file.id), "kind": "file", "file_id": file.id, "page": i+1 }
             ))
 
         return docs
@@ -206,6 +213,10 @@ class CanvasLoader(BaseLoader):
             loader = Docx2txtLoader(file_path)
             docs = loader.load()
 
+            for i, doc in enumerate(docs):
+                docs[i].metadata["filename"] = file.filename
+                docs[i].metadata["source"] = self._get_file_url(file.id)
+
         return docs
 
     def _load_excel_file(self, file) -> List[Document]:
@@ -220,6 +231,10 @@ class CanvasLoader(BaseLoader):
 
             loader = UnstructuredExcelLoader(file_path)
             docs = loader.load()
+
+            for i, doc in enumerate(docs):
+                docs[i].metadata["filename"] = file.filename
+                docs[i].metadata["source"] = self._get_file_url(file.id)
 
         return docs
 
@@ -236,6 +251,10 @@ class CanvasLoader(BaseLoader):
             loader = UnstructuredPowerPointLoader(file_path)
             docs = loader.load()
 
+            for i, doc in enumerate(docs):
+                docs[i].metadata["filename"] = file.filename
+                docs[i].metadata["source"] = self._get_file_url(file.id)
+
         return docs
 
     def _load_md_file(self, file) -> List[Document]:
@@ -250,6 +269,10 @@ class CanvasLoader(BaseLoader):
 
             loader = UnstructuredMarkdownLoader(file_path)
             docs = loader.load()
+
+            for i, doc in enumerate(docs):
+                docs[i].metadata["filename"] = file.filename
+                docs[i].metadata["source"] = self._get_file_url(file.id)
 
         return docs
 
@@ -448,6 +471,8 @@ class CanvasLoader(BaseLoader):
             # Access the course's name
             print(f"Indexing: {course.name}")
             print("")
+
+            self.returned_course_id = course.id
 
             # Checking to see which tools are available?
             tabs = course.get_tabs()
