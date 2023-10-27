@@ -181,6 +181,7 @@ class CanvasLoader(BaseLoader):
         try:
             # Import PDF parser class
             from PyPDF2 import PdfReader
+            from PyPDF2 import errors
         except ImportError as exc:
             raise ImportError(
                 "Could not import PyPDF2 python package. "
@@ -188,15 +189,19 @@ class CanvasLoader(BaseLoader):
             ) from exc
 
         file_contents = file.get_contents(binary=True)
-        pdf_reader = PdfReader(BytesIO(file_contents))
 
         docs = []
 
-        for i, page in enumerate(pdf_reader.pages):
-            docs.append(Document(
-                page_content=page.extract_text(),
-                metadata={ "filename": file.filename, "source": self._get_file_url(file.id), "kind": "file", "file_id": file.id, "page": i+1 }
-            ))
+        try:
+            pdf_reader = PdfReader(BytesIO(file_contents))
+
+            for i, page in enumerate(pdf_reader.pages):
+                docs.append(Document(
+                    page_content=page.extract_text(),
+                    metadata={ "filename": file.filename, "source": self._get_file_url(file.id), "kind": "file", "file_id": file.id, "page": i+1 }
+                ))
+        except errors.FileNotDecryptedError:
+            self._error_logger(error="PyPDF2.errors.FileNotDecryptedError: File has not been decrypted", action="read_pdf", entity_type="file", entity_id=file.id)
 
         return docs
 
@@ -277,7 +282,9 @@ class CanvasLoader(BaseLoader):
         return docs
 
     def _error_logger(self, error, action, entity_type, entity_id) -> None:
-        if isinstance(error.message, str):
+        if isinstance(error, str):
+            self.errors.append({ "message": error, "action": action, "entity_type": entity_type, "entity_id": entity_id })
+        elif isinstance(error.message, str):
             message_json = json.loads(error.message)
             self.errors.append({ "message": message_json["errors"][0]["message"], "action": action, "entity_type": entity_type, "entity_id": entity_id })
         else:
