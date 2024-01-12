@@ -29,7 +29,7 @@ logger.addHandler(ch)
 class CanvasLoader(BaseLoader):
     """Loading logic for Canvas Pages, Announcements, Assignments and Files."""
 
-    def __init__(self, api_url: str, api_key: str = "", course_id: int = 0, index_external_urls: bool = False, log_level = logging.NOTSET):
+    def __init__(self, api_url: str, api_key: str = "", course_id: int = 0, index_external_urls: bool = False, log_level = None):
         """Initialize with API URL and api_key.
 
         Args:
@@ -49,8 +49,9 @@ class CanvasLoader(BaseLoader):
 
         self.errors = []
 
-        logger.setLevel(log_level)
-        ch.setLevel(log_level)
+        if log_level:
+            logger.setLevel(log_level)
+            ch.setLevel(log_level)
 
     def _get_syllabus_url(self) -> str:
         return f"{self.api_url}/courses/{self.returned_course_id}/assignments/syllabus"
@@ -216,7 +217,7 @@ class CanvasLoader(BaseLoader):
                     metadata={ "filename": file.filename, "source": self._get_file_url(file.id), "kind": "file", "file_id": file.id, "page": i+1 }
                 ))
         except errors.FileNotDecryptedError:
-            logger.info(f"PyPDF2.errors.FileNotDecryptedError: File has not been decrypted {file.filename}")
+            logger.info(f"PyPDF2.errors.FileNotDecryptedError: (File has not been decrypted {file.filename})")
             self._error_logger(error=f"PyPDF2.errors.FileNotDecryptedError: File has not been decrypted {file.filename}", action="read_pdf", entity_type="file", entity_id=file.id)
         except binasciiError as err:
             logger.info(f"{str(err)} ({file.filename})")
@@ -393,6 +394,11 @@ class CanvasLoader(BaseLoader):
 
     def load_syllabus(self, course) -> List[Document]:
         try:
+            syllabus_body = course.syllabus_body
+
+            if not syllabus_body:
+                return []
+
             page_body_text = self._get_html_as_string(course.syllabus_body)
 
             if len(page_body_text.strip()) == 0:
