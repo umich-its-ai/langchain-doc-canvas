@@ -18,10 +18,18 @@ from langchain.document_loaders import UnstructuredURLLoader
 
 from striprtf.striprtf import rtf_to_text
 
+import logging
+logger = logging.getLogger(__name__)
+
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
 class CanvasLoader(BaseLoader):
     """Loading logic for Canvas Pages, Announcements, Assignments and Files."""
 
-    def __init__(self, api_url: str, api_key: str = "", course_id: int = 0, index_external_urls: bool = False):
+    def __init__(self, api_url: str, api_key: str = "", course_id: int = 0, index_external_urls: bool = False, log_level = logging.NOTSET):
         """Initialize with API URL and api_key.
 
         Args:
@@ -40,6 +48,12 @@ class CanvasLoader(BaseLoader):
         self.indexed_items = []
 
         self.errors = []
+
+        logger.setLevel(log_level)
+        ch.setLevel(log_level)
+
+    def _get_syllabus_url(self) -> str:
+        return f"{self.api_url}/courses/{self.returned_course_id}/assignments/syllabus"
 
     def _get_page_url(self, page_url) -> str:
         return f"{self.api_url}/courses/{self.returned_course_id}/pages/{page_url}"
@@ -182,6 +196,7 @@ class CanvasLoader(BaseLoader):
             # Import PDF parser class
             from PyPDF2 import PdfReader
             from PyPDF2 import errors
+            from binascii import Error as binasciiError
         except ImportError as exc:
             raise ImportError(
                 "Could not import PyPDF2 python package. "
@@ -201,7 +216,14 @@ class CanvasLoader(BaseLoader):
                     metadata={ "filename": file.filename, "source": self._get_file_url(file.id), "kind": "file", "file_id": file.id, "page": i+1 }
                 ))
         except errors.FileNotDecryptedError:
-            self._error_logger(error="PyPDF2.errors.FileNotDecryptedError: File has not been decrypted", action="read_pdf", entity_type="file", entity_id=file.id)
+            logger.info(f"PyPDF2.errors.FileNotDecryptedError: File has not been decrypted {file.filename}")
+            self._error_logger(error=f"PyPDF2.errors.FileNotDecryptedError: File has not been decrypted {file.filename}", action="read_pdf", entity_type="file", entity_id=file.id)
+        except binasciiError as err:
+            logger.info(f"{str(err)} ({file.filename})")
+            self._error_logger(error=f"{str(err)} ({file.filename})", action="read_pdf", entity_type="file", entity_id=file.id)
+        except Exception as err:
+            logger.info(f"{str(err)} ({file.filename})")
+            self._error_logger(error=f"{str(err)} ({file.filename})", action="read_pdf", entity_type="file", entity_id=file.id)
 
         return docs
 
@@ -331,10 +353,8 @@ class CanvasLoader(BaseLoader):
             "text/plain", # txt
         ]
 
-        # print(f"New file:  {file.filename} ({file_content_type}) ({file.mime_class})")
-
         if file_content_type in allowed_content_types:
-            # print(f"Processing {file.filename} {file.mime_class}")
+            logger.info(f"Processing {file.filename} {file.mime_class}")
 
             if file_content_type == "text/plain":
                 file_documents = file_documents + self._load_text_file(file)
@@ -371,6 +391,22 @@ class CanvasLoader(BaseLoader):
 
         return url_docs
 
+    def load_syllabus(self, course) -> List[Document]:
+        try:
+            page_body_text = self._get_html_as_string(course.syllabus_body)
+
+            if len(page_body_text.strip()) == 0:
+                return []
+
+            return [Document(
+                page_content=page_body_text.strip(),
+                metadata={ "filename": "Course Syllabus", "source": self._get_syllabus_url(), "kind": "syllabus" }
+            )]
+        except AttributeError:
+            return []
+
+        return []
+
     def load_modules(self, course) -> List[Document]:
         """Loads all modules from a canvas course."""
         from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
@@ -396,7 +432,7 @@ class CanvasLoader(BaseLoader):
 
                 for module_item in module_items:
                     if module_item.type == "Page":
-                        # print(f"  Indexing page {module_item.title} ({module_item.page_url})")
+                        logger.info(f"  Indexing page {module_item.title} ({module_item.page_url})")
 
                         if f"Page:{module_item.page_url}" not in self.indexed_items:
                             if locked:
@@ -410,7 +446,7 @@ class CanvasLoader(BaseLoader):
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_page", entity_type="page", entity_id=module_item.page_url)
                     elif module_item.type == "Assignment":
-                        # print(f"  Indexing assignment {module_item.title} ({module_item.content_id})")
+                        logger.info(f"  Indexing assignment {module_item.title} ({module_item.content_id})")
 
                         if f"Assignment:{module_item.content_id}" not in self.indexed_items:
                             try:
@@ -420,7 +456,7 @@ class CanvasLoader(BaseLoader):
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_assignment", entity_type="assignment", entity_id=module_item.content_id)
                     elif module_item.type == "File":
-                        # print(f"  Indexing file {module_item.title} ({module_item.content_id})")
+                        logger.info(f"  Indexing file {module_item.title} ({module_item.content_id})")
 
                         if f"File:{module_item.content_id}" not in self.indexed_items:
                             try:
@@ -438,7 +474,7 @@ class CanvasLoader(BaseLoader):
                             # Don't try indexing external URL
                             continue
 
-                        # print(f"  Indexing file {module_item.title} ({module_item.external_url})")
+                        logger.info(f"  Indexing file {module_item.title} ({module_item.external_url})")
 
                         if f"ExternalUrl:{module_item.external_url}" not in self.indexed_items:
                             try:
@@ -447,7 +483,7 @@ class CanvasLoader(BaseLoader):
                             except CanvasException as error:
                                 self._error_logger(error=error, action="load_url", entity_type="externalurl", entity_id=module_item.external_url)
                     else:
-                        print(f"  Module Item {module_item.title} is an unsupported type ({module_item.type})")
+                        logger.info(f"  Module Item {module_item.title} is an unsupported type ({module_item.type})")
 
         except CanvasException as error:
             self._error_logger(error=error, action="get_modules", entity_type="course", entity_id=course.id)
@@ -473,13 +509,15 @@ class CanvasLoader(BaseLoader):
             # Initialize a new Canvas object
             canvas = Canvas(self.api_url, self.api_key)
 
-            course = canvas.get_course(self.course_id)
+            course = canvas.get_course(self.course_id, include=[ "syllabus_body" ])
 
             # Access the course's name
-            print(f"Indexing: {course.name}")
-            print("")
+            logger.info(f"Indexing: {course.name}")
 
             self.returned_course_id = course.id
+
+            # add syllabus
+            docs = docs + self.load_syllabus(course=course)
 
             # Checking to see which tools are available?
             tabs = course.get_tabs()
