@@ -6,6 +6,8 @@ loader = CanvasLoader(
 	api_key = "API_GOES_HERE",
 	course_id = CANVAS_ID_GOES_HERE)
 	log_level = logging.INFO
+)
+
 documents = loader.load()
 
 print("\nDocuments:\n")
