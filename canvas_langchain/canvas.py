@@ -217,8 +217,8 @@ class CanvasLoader(BaseLoader):
                     metadata={ "filename": file.filename, "source": self._get_file_url(file.id), "kind": "file", "file_id": file.id, "page": i+1 }
                 ))
         except errors.FileNotDecryptedError:
-            logger.info(f"PyPDF2.errors.FileNotDecryptedError: (File has not been decrypted {file.filename})")
-            self._error_logger(error=f"PyPDF2.errors.FileNotDecryptedError: File has not been decrypted {file.filename}", action="read_pdf", entity_type="file", entity_id=file.id)
+            logger.info(f"PyPDF2.errors.FileNotDecryptedError: File has not been decrypted ({file.filename})")
+            self._error_logger(error=f"PyPDF2.errors.FileNotDecryptedError: File has not been decrypted ({file.filename})", action="read_pdf", entity_type="file", entity_id=file.id)
         except binasciiError as err:
             logger.info(f"{str(err)} ({file.filename})")
             self._error_logger(error=f"{str(err)} ({file.filename})", action="read_pdf", entity_type="file", entity_id=file.id)
