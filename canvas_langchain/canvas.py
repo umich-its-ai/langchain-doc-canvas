@@ -142,7 +142,7 @@ class CanvasLoader(BaseLoader):
         """Load a specific assignment."""
         if assignment.description:
             assignment_description = self._get_html_as_string(assignment.description)
-            assignment_description = f" Assignment Description: {assignment_description}\n\n"
+            assignment_description = f"Assignment Description: {assignment_description}\n\n"
         else:
             assignment_description = ""
 
@@ -507,7 +507,7 @@ class CanvasLoader(BaseLoader):
             from canvasapi.exceptions import CanvasException
         except ImportError as exc:
             raise ImportError(
-                "Could not import canvasapi python package. "
+                "Could not import canvasapi python package."
                 "Please install it with `pip install canvasapi`."
             ) from exc
 
