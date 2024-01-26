@@ -10,11 +10,11 @@ import pytz
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
 
-from langchain.document_loaders import Docx2txtLoader
-from langchain.document_loaders import UnstructuredExcelLoader
-from langchain.document_loaders import UnstructuredPowerPointLoader
-from langchain.document_loaders import UnstructuredMarkdownLoader
-from langchain.document_loaders import UnstructuredURLLoader
+from langchain_community.document_loaders import Docx2txtLoader
+from langchain_community.document_loaders import UnstructuredExcelLoader
+from langchain_community.document_loaders import UnstructuredPowerPointLoader
+from langchain_community.document_loaders import UnstructuredMarkdownLoader
+from langchain_community.document_loaders import UnstructuredURLLoader
 
 from striprtf.striprtf import rtf_to_text
 
@@ -29,7 +29,7 @@ logger.addHandler(ch)
 class CanvasLoader(BaseLoader):
     """Loading logic for Canvas Pages, Announcements, Assignments and Files."""
 
-    def __init__(self, api_url: str, api_key: str = "", course_id: int = 0, index_external_urls: bool = False, log_level = None):
+    def __init__(self, api_url: str, api_key: str = "", course_id: int = 0, index_external_urls: bool = False):
         """Initialize with API URL and api_key.
 
         Args:
@@ -48,10 +48,6 @@ class CanvasLoader(BaseLoader):
         self.indexed_items = []
 
         self.errors = []
-
-        if log_level:
-            logger.setLevel(log_level)
-            ch.setLevel(log_level)
 
     def _get_syllabus_url(self) -> str:
         return f"{self.api_url}/courses/{self.returned_course_id}/assignments/syllabus"

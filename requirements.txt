@@ -1,4 +1,5 @@
 langchain
+langchain-community
 unstructured[docx,pptx]
 canvasapi
 beautifulsoup4
