@@ -3,7 +3,8 @@
 import tempfile
 import json
 from io import BytesIO
-from typing import List
+from typing import Any, List, Literal
+from pydantic import BaseModel
 from datetime import date, datetime
 import pytz
 
@@ -26,8 +27,41 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
+class LogStatement(BaseModel):
+    """
+    INFO can be user-facing statements, non-technical and perhaps very high-level
+    """
+    message: Any
+    level: Literal['INFO', 'DEBUG', 'WARNING']
+
+    def __json__(self):
+        return {
+            'message': self.message,
+            'level': self.level,
+        }
+
 class CanvasLoader(BaseLoader):
     """Loading logic for Canvas Pages, Announcements, Assignments and Files."""
+
+    def logMessage(self, message, level):
+        print(message)
+
+        if level == 'INFO':
+            logger.info(message)
+        if level == 'DEBUG':
+            logger.debug(message)
+        if level == 'WARNING':
+            logger.warning(message)
+
+            self.errors.append(LogStatement(
+                message = message,
+                level = level
+            ))
+
+        self.progress.append(LogStatement(
+            message = message,
+            level = level
+        ))
 
     def __init__(self, api_url: str, api_key: str = "", course_id: int = 0, index_external_urls: bool = False):
         """Initialize with API URL and api_key.
@@ -48,6 +82,7 @@ class CanvasLoader(BaseLoader):
         self.indexed_items = []
 
         self.errors = []
+        self.progress = []
 
     def _get_syllabus_url(self) -> str:
         return f"{self.api_url}/courses/{self.returned_course_id}/assignments/syllabus"
@@ -213,13 +248,10 @@ class CanvasLoader(BaseLoader):
                     metadata={ "filename": file.filename, "source": self._get_file_url(file.id), "kind": "file", "file_id": file.id, "page": i+1 }
                 ))
         except errors.FileNotDecryptedError:
-            logger.info(f"PyPDF2.errors.FileNotDecryptedError: File has not been decrypted ({file.filename})")
             self._error_logger(error=f"PyPDF2.errors.FileNotDecryptedError: File has not been decrypted ({file.filename})", action="read_pdf", entity_type="file", entity_id=file.id)
         except binasciiError as err:
-            logger.info(f"{str(err)} ({file.filename})")
             self._error_logger(error=f"{str(err)} ({file.filename})", action="read_pdf", entity_type="file", entity_id=file.id)
         except Exception as err:
-            logger.info(f"{str(err)} ({file.filename})")
             self._error_logger(error=f"{str(err)} ({file.filename})", action="read_pdf", entity_type="file", entity_id=file.id)
 
         return docs
@@ -302,12 +334,12 @@ class CanvasLoader(BaseLoader):
 
     def _error_logger(self, error, action, entity_type, entity_id) -> None:
         if isinstance(error, str):
-            self.errors.append({ "message": error, "action": action, "entity_type": entity_type, "entity_id": entity_id })
+            self.logMessage(message = { "message": error, "action": action, "entity_type": entity_type, "entity_id": entity_id }, level = 'WARNING')
         elif isinstance(error.message, str):
             message_json = json.loads(error.message)
-            self.errors.append({ "message": message_json["errors"][0]["message"], "action": action, "entity_type": entity_type, "entity_id": entity_id })
+            self.logMessage(message = { "message": message_json["errors"][0]["message"], "action": action, "entity_type": entity_type, "entity_id": entity_id }, level = 'WARNING')
         else:
-            self.errors.append({ "message": error.message[0]["message"], "action": action, "entity_type": entity_type, "entity_id": entity_id })
+            self.logMessage(message = { "message": error.message[0]["message"], "action": action, "entity_type": entity_type, "entity_id": entity_id }, level = 'WARNING')
 
     def load_files(self, course) -> List[Document]:
         """Loads all files from a canvas course."""
@@ -351,7 +383,7 @@ class CanvasLoader(BaseLoader):
         ]
 
         if file_content_type in allowed_content_types:
-            logger.info(f"Processing {file.filename} {file.mime_class}")
+            self.logMessage(message=f"Processing {file.filename} {file.mime_class}", level="DEBUG")
 
             if file_content_type == "text/plain":
                 file_documents = file_documents + self._load_text_file(file)
@@ -434,10 +466,11 @@ class CanvasLoader(BaseLoader):
 
                 for module_item in module_items:
                     if module_item.type == "Page":
-                        logger.info(f"  Indexing page {module_item.title} ({module_item.page_url})")
+                        self.logMessage(message=f"Indexing page {module_item.title} ({module_item.page_url})", level="DEBUG")
 
                         if f"Page:{module_item.page_url}" not in self.indexed_items:
                             if locked:
+                                self.logMessage(message=f"Page locked - cannot index", level="WARNING")
                                 # Don't try indexing page
                                 continue
 
@@ -448,8 +481,7 @@ class CanvasLoader(BaseLoader):
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_page", entity_type="page", entity_id=module_item.page_url)
                     elif module_item.type == "Assignment":
-                        logger.info(f"  Indexing assignment {module_item.title} ({module_item.content_id})")
-
+                        self.logMessage(message=f"Indexing assignment {module_item.title} ({module_item.content_id})", level="DEBUG")
                         if f"Assignment:{module_item.content_id}" not in self.indexed_items:
                             try:
                                 assignment = course.get_assignment(module_item.content_id)
@@ -458,8 +490,7 @@ class CanvasLoader(BaseLoader):
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_assignment", entity_type="assignment", entity_id=module_item.content_id)
                     elif module_item.type == "File":
-                        logger.info(f"  Indexing file {module_item.title} ({module_item.content_id})")
-
+                        self.logMessage(message=f"Indexing file {module_item.title} ({module_item.content_id})", level="DEBUG")
                         if f"File:{module_item.content_id}" not in self.indexed_items:
                             try:
                                 file = course.get_file(module_item.content_id)
@@ -476,7 +507,7 @@ class CanvasLoader(BaseLoader):
                             # Don't try indexing external URL
                             continue
 
-                        logger.info(f"  Indexing file {module_item.title} ({module_item.external_url})")
+                        self.logMessage(message=f"Indexing file {module_item.title} ({module_item.external_url})", level="DEBUG")
 
                         if f"ExternalUrl:{module_item.external_url}" not in self.indexed_items:
                             try:
@@ -485,7 +516,7 @@ class CanvasLoader(BaseLoader):
                             except CanvasException as error:
                                 self._error_logger(error=error, action="load_url", entity_type="externalurl", entity_id=module_item.external_url)
                     else:
-                        logger.info(f"  Module Item {module_item.title} is an unsupported type ({module_item.type})")
+                        self.logMessage(message=f"Module Item {module_item.title} is an unsupported type ({module_item.type})", level="DEBUG")
 
         except CanvasException as error:
             self._error_logger(error=error, action="get_modules", entity_type="course", entity_id=course.id)
@@ -514,11 +545,12 @@ class CanvasLoader(BaseLoader):
             course = canvas.get_course(self.course_id, include=[ "syllabus_body" ])
 
             # Access the course's name
-            logger.info(f"Indexing: {course.name}")
+            self.logMessage(message=f"Indexing: {course.name}", level="INFO")
 
             self.returned_course_id = course.id
 
             # add syllabus
+            self.logMessage(message="Load syllabus", level="DEBUG")
             docs = docs + self.load_syllabus(course=course)
 
             # Checking to see which tools are available?
@@ -529,28 +561,33 @@ class CanvasLoader(BaseLoader):
             for tab in tabs:
                 available_tabs.append(tab.id)
 
-            # load modules
+            # Load modules
             if "modules" in available_tabs:
+                self.logMessage(message="Load modules", level="DEBUG")
                 module_documents = self.load_modules(course=course)
                 docs = docs + module_documents
 
             # Load pages
             if "page" in available_tabs:
+                self.logMessage(message="Load pages", level="DEBUG")
                 page_documents = self.load_pages(course=course)
                 docs = docs + page_documents
 
-            # load announcements
+            # Load announcements
             if "announcements" in available_tabs:
+                self.logMessage(message="Load announcements", level="DEBUG")
                 announcement_documents = self.load_announcements(canvas=canvas, course=course)
                 docs = docs + announcement_documents
 
-            # load assignments
+            # Load assignments
             if "assignments" in available_tabs:
+                self.logMessage(message="Load assignments", level="DEBUG")
                 assignment_documents = self.load_assignments(course=course)
                 docs = docs + assignment_documents
 
-            # load files
+            # Load files
             if "files" in available_tabs:
+                self.logMessage(message="Load files", level="DEBUG")
                 file_documents = self.load_files(course=course)
                 docs = docs + file_documents
 
@@ -558,8 +595,19 @@ class CanvasLoader(BaseLoader):
             for doc in docs:
                 doc.page_content = doc.page_content.replace('\x00', ' ')
 
+            if len(self.errors) > 0:
+                self.logMessage(message=f"{len(self.errors)} file(s) were unable to be indexed.", level="INFO")
+
             return docs
         except CanvasException as error:
             self._error_logger(error=error, action="get_course", entity_type="course", entity_id=self.course_id)
 
         return docs
+
+    def _filtered_statements_by_level(self, level) -> List:
+        return [statement for statement in self.progress if statement.level == level]
+
+    def get_details(self, level='INFO') -> List:
+        if level == 'INFO':
+            return self._filtered_statements_by_level(level), self.errors
+        return self.progress, self.errors

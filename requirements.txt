@@ -8,6 +8,7 @@ PyPDF2[crypto]
 striprtf
 docx2txt
 pandas
+pydantic
 openpyxl
 xlrd
 markdown
