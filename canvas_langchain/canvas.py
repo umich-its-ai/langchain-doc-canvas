@@ -43,26 +43,6 @@ class LogStatement(BaseModel):
 class CanvasLoader(BaseLoader):
     """Loading logic for Canvas Pages, Announcements, Assignments and Files."""
 
-    def logMessage(self, message, level):
-        print(message)
-
-        if level == 'INFO':
-            logger.info(message)
-        if level == 'DEBUG':
-            logger.debug(message)
-        if level == 'WARNING':
-            logger.warning(message)
-
-            self.errors.append(LogStatement(
-                message = message,
-                level = level
-            ))
-
-        self.progress.append(LogStatement(
-            message = message,
-            level = level
-        ))
-
     def __init__(self, api_url: str, api_key: str = "", course_id: int = 0, index_external_urls: bool = False):
         """Initialize with API URL and api_key.
 
@@ -113,6 +93,24 @@ class CanvasLoader(BaseLoader):
             self._error_logger(error=error, action="get_pages", entity_type="page", entity_id=page.page_id)
 
         return page_documents
+
+    def logMessage(self, message, level):
+        if level == 'INFO':
+            logger.info(message)
+        if level == 'DEBUG':
+            logger.debug(message)
+        if level == 'WARNING':
+            logger.warning(message)
+
+            self.errors.append(LogStatement(
+                message = message,
+                level = level
+            ))
+
+        self.progress.append(LogStatement(
+            message = message,
+            level = level
+        ))
 
     def load_page(self, page) -> List[Document]:
         """Load a specific page."""
@@ -249,10 +247,13 @@ class CanvasLoader(BaseLoader):
                 ))
         except errors.FileNotDecryptedError:
             self._error_logger(error=f"PyPDF2.errors.FileNotDecryptedError: File has not been decrypted ({file.filename})", action="read_pdf", entity_type="file", entity_id=file.id)
+            self.logMessage(message = { "message": { 'filename': f"{file.filename}", 'reason': 'not_indexed' } }, level = 'INFO')
         except binasciiError as err:
             self._error_logger(error=f"{str(err)} ({file.filename})", action="read_pdf", entity_type="file", entity_id=file.id)
+            self.logMessage(message = { "message": { 'filename': f"{file.filename}", 'reason': 'not_indexed' } }, level = 'INFO')
         except Exception as err:
             self._error_logger(error=f"{str(err)} ({file.filename})", action="read_pdf", entity_type="file", entity_id=file.id)
+            self.logMessage(message = { "message": { 'filename': f"{file.filename}", 'reason': 'not_indexed' } }, level = 'INFO')
 
         return docs
 
@@ -545,7 +546,7 @@ class CanvasLoader(BaseLoader):
             course = canvas.get_course(self.course_id, include=[ "syllabus_body" ])
 
             # Access the course's name
-            self.logMessage(message=f"Indexing: {course.name}", level="INFO")
+            self.logMessage(message=f"Indexing: {course.name} ({course.id})", level="INFO")
 
             self.returned_course_id = course.id
 

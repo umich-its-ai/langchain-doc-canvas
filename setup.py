@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='canvas_langchain',
-    version='0.9.8',
+    version='0.9.9',
     description='A canvas langchain integration',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
