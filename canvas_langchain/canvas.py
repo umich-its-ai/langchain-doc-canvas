@@ -115,13 +115,18 @@ class CanvasLoader(BaseLoader):
     def load_page(self, page) -> List[Document]:
         """Load a specific page."""
         try:
-            page_body_text = self._get_html_as_string(page.body)
+            if page.body:
+                page_body_text = self._get_html_as_string(page.body)
 
-            return [Document(
-                page_content=page_body_text.strip(),
-                metadata={ "filename": page.title, "source": self._get_page_url(page.url), "kind": "page", "page_id": page.page_id }
-            )]
+                return [Document(
+                    page_content=page_body_text.strip(),
+                    metadata={ "filename": page.title, "source": self._get_page_url(page.url), "kind": "page", "page_id": page.page_id }
+                )]
+            else:
+                # Page with no content - None
+                return []
         except AttributeError:
+            self._error_logger(error=error, action="load_page", entity_type="page", entity_id=page.page_id)
             return []
 
     def load_announcements(self, canvas, course) -> List[Document]:
