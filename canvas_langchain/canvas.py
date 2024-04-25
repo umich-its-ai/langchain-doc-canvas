@@ -115,6 +115,10 @@ class CanvasLoader(BaseLoader):
     def load_page(self, page) -> List[Document]:
         """Load a specific page."""
         try:
+            if page.locked_for_user == True:
+                # Page Is locked
+                return []
+
             if page.body:
                 page_body_text = self._get_html_as_string(page.body)
 
