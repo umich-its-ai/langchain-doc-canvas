@@ -116,7 +116,7 @@ class CanvasLoader(BaseLoader):
         """Load a specific page."""
         try:
             if page.locked_for_user == True:
-                # Page Is locked
+                # Page is locked
                 return []
 
             if page.body:
@@ -578,7 +578,7 @@ class CanvasLoader(BaseLoader):
                 docs = docs + module_documents
 
             # Load pages
-            if 'pages' in available_tabs:
+            if "pages" in available_tabs:
                 self.logMessage(message="Load pages", level="DEBUG")
                 page_documents = self.load_pages(course=course)
                 docs = docs + page_documents
