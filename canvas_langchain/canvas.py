@@ -574,7 +574,7 @@ class CanvasLoader(BaseLoader):
                 docs = docs + module_documents
 
             # Load pages
-            if "page" in available_tabs:
+            if 'pages' in available_tabs:
                 self.logMessage(message="Load pages", level="DEBUG")
                 page_documents = self.load_pages(course=course)
                 docs = docs + page_documents
