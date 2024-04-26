@@ -177,15 +177,24 @@ class CanvasLoader(BaseLoader):
 
         return assignment_documents
 
-    def load_assignment(self, assignment) -> List[Document]:
+    def load_assignment(self, assignment, module=None, locked=False, unlock_at_datetime=None) -> List[Document]:
         """Load a specific assignment."""
-        if assignment.description:
-            assignment_description = self._get_html_as_string(assignment.description)
-            assignment_description = f"Assignment Description: {assignment_description}\n\n"
-        else:
-            assignment_description = ""
+        if locked and unlock_at_datetime:
+            friendly_time = unlock_at_datetime
 
-        assignment_content=f"Assignment Name: {assignment.name} \n\n Assignment Due Date: {assignment.due_at} \n\n{assignment_description}"
+            ny_timezone = pytz.timezone('America/New_York')
+            ny_datetime = unlock_at_datetime.astimezone(ny_timezone)
+            formatted_datetime = ny_datetime.strftime("%b %d, %Y at %I%p %Z").replace("PM", "pm").replace("AM", 'am')
+
+            assignment_description = f"This assignment is part of the module {module.name}, which is locked until {formatted_datetime}."
+        else:
+            if assignment.description:
+                assignment_description = self._get_html_as_string(assignment.description)
+                assignment_description = f"Assignment Description: {assignment_description}\n\n"
+            else:
+                assignment_description = ""
+
+        assignment_content=f"Assignment Name: {assignment.name} \n\n Assignment Due Date: {assignment.due_at} \n\n Assignment Points Possible: {assignment.points_possible} \n\n{assignment_description}"
 
         return [Document(
             page_content=assignment_content,
@@ -496,7 +505,7 @@ class CanvasLoader(BaseLoader):
                         if f"Assignment:{module_item.content_id}" not in self.indexed_items:
                             try:
                                 assignment = course.get_assignment(module_item.content_id)
-                                module_documents = module_documents + self.load_assignment(assignment)
+                                module_documents = module_documents + self.load_assignment(assignment, module, locked, unlock_at_datetime)
                                 self.indexed_items.append(f"Assignment:{module_item.content_id}")
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_assignment", entity_type="assignment", entity_id=module_item.content_id)
