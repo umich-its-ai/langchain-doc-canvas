@@ -117,6 +117,7 @@ class CanvasLoader(BaseLoader):
         try:
             if page.locked_for_user == True:
                 # Page is locked
+                self.logMessage(message=f"Page ({page.title}) locked - cannot index", level="DEBUG")
                 return []
 
             if page.body:
@@ -476,13 +477,13 @@ class CanvasLoader(BaseLoader):
 
                 for module_item in module_items:
                     if module_item.type == "Page":
-                        self.logMessage(message=f"Indexing page {module_item.title} ({module_item.page_url})", level="DEBUG")
-
                         if f"Page:{module_item.page_url}" not in self.indexed_items:
                             if locked:
-                                self.logMessage(message=f"Page locked - cannot index", level="WARNING")
+                                self.logMessage(message=f"Page ({module_item.title}) locked - cannot index", level="DEBUG")
                                 # Don't try indexing page
                                 continue
+
+                            self.logMessage(message=f"Indexing page {module_item.title} ({module_item.page_url})", level="DEBUG")
 
                             try:
                                 page = course.get_page(module_item.page_url)
@@ -514,6 +515,7 @@ class CanvasLoader(BaseLoader):
                                 self._error_logger(error=error, action="get_file", entity_type="file", entity_id=module_item.content_id)
                     elif module_item.type == "ExternalUrl" and self.index_external_urls is True:
                         if locked:
+                            self.logMessage(message=f"External URL locked - cannot index", level="DEBUG")
                             # Don't try indexing external URL
                             continue
 
