@@ -25,7 +25,9 @@ try:
 	print("")
 
 	print("\nProgress:\n")
-	print(loader.get_details('DEBUG'))
+    print('\n'.join([f'{m.level} — {m.message}' for m in loader.get_details('DEBUG')[0]]))
 	print("")
-except Exception:
-	details = loader.get_details('DEBUG')
+
+except Exception as ex:
+    print(loader.get_details('DEBUG'))
+    print(ex)
