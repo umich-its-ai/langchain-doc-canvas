@@ -4,6 +4,7 @@ import tempfile
 import json
 from io import BytesIO
 from typing import Any, List, Literal
+
 from pydantic import BaseModel
 from datetime import date, datetime
 import pytz
@@ -18,6 +19,8 @@ from langchain_community.document_loaders import UnstructuredMarkdownLoader
 from langchain_community.document_loaders import UnstructuredURLLoader
 
 from striprtf.striprtf import rtf_to_text
+
+from LangChainYouTube import YouTubeCaptionLoader
 
 import logging
 logger = logging.getLogger(__name__)
@@ -112,6 +115,56 @@ class CanvasLoader(BaseLoader):
             level = level
         ))
 
+    def _get_iframe_sources(self, html) -> List[str]:
+        """
+        Parse HTML and return the src attributes of iframe elements therein.
+        """
+        try:
+            from bs4 import BeautifulSoup
+        except ImportError as exc:
+            raise ImportError(
+                'Could not import beautifulsoup4 Python package. '
+                'Please install it with `pip install beautifulsoup4`.'
+            ) from exc
+
+        parsed_html = BeautifulSoup(html, 'html.parser')
+        iframes = parsed_html.find_all('iframe')
+
+        iframe_sources = [iframe.get('src') for iframe in iframes]
+
+        return iframe_sources
+
+    def load_embedded_video_caption(self, page) -> List[Document]:
+        """
+        Load captions from a video embedded on a page (or other resource).
+        """
+        iframe_sources = self._get_iframe_sources(page.body)
+
+        # For each iframe source, load captions
+        captions = []
+        for iframe_source in iframe_sources:
+            # Try loading captions from YouTube.  If that fails, try Kaltura.
+            try:
+                loader = YouTubeCaptionLoader(iframe_source)
+                captions.extend(loader.load())
+                self.logMessage(
+                    f'Loaded YouTube captions for iframe: "{iframe_source}"',
+                    'DEBUG')
+                continue
+            except ValueError as exc:
+                self.logMessage(
+                    'Failed to load YouTube captions '
+                    f'for iframe: "{iframe_source}"',
+                    'DEBUG')
+            # YouTube failed, try Kaltura.
+            # TODO: Implement Kaltura logic
+            self.logMessage(
+                'Try loading Kaltura captions '
+                f'for iframe: "{iframe_source}"',
+                'DEBUG')
+        return captions
+
+
     def load_page(self, page) -> List[Document]:
         """Load a specific page."""
         try:
@@ -121,12 +174,17 @@ class CanvasLoader(BaseLoader):
                 return []
 
             if page.body:
+                embedded_video_captions = self.load_embedded_video_caption(page)
                 page_body_text = self._get_html_as_string(page.body)
 
                 return [Document(
                     page_content=page_body_text.strip(),
-                    metadata={ "filename": page.title, "source": self._get_page_url(page.url), "kind": "page", "page_id": page.page_id }
-                )]
+                    metadata={
+                        "filename": page.title,
+                        "source": self._get_page_url(page.url),
+                        "kind": "page",
+                        "page_id": page.page_id}
+                ), *embedded_video_captions]
             else:
                 # Page with no content - None
                 return []
@@ -215,6 +273,7 @@ class CanvasLoader(BaseLoader):
         html_string = BeautifulSoup(html, "lxml").text.strip()
 
         return html_string
+
 
     def _load_text_file(self, file) -> List[Document]:
         file_contents = file.get_contents(binary=False)
@@ -574,13 +633,8 @@ class CanvasLoader(BaseLoader):
             self.logMessage(message="Load syllabus", level="DEBUG")
             docs = docs + self.load_syllabus(course=course)
 
-            # Checking to see which tools are available?
-            tabs = course.get_tabs()
-
-            available_tabs = []
-
-            for tab in tabs:
-                available_tabs.append(tab.id)
+            # Get list of IDs for available navigation tabs
+            available_tabs = [t.id for t in course.get_tabs()]
 
             # Load modules
             if "modules" in available_tabs:
