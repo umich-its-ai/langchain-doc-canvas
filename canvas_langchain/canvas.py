@@ -578,6 +578,17 @@ class CanvasLoader(BaseLoader):
             tabs = course.get_tabs()
 
             available_tabs = []
+            # Canvas Tab labels are the names shown in the UI
+            # Useful because LTIs all have IDs like 'external_tool'
+            available_tabs_labels = [t.label for t in tabs]
+
+            # Load MiVideo (Kaltura) media captions from Media Gallery LTI
+            if 'Media Gallery' in available_tabs_labels:
+                self.logMessage(
+                    'Load MiVideo (Kaltura) media captions',
+                    'DEBUG')
+                mivideo_documents = self.load_mivideo(course)
+                docs.extend(mivideo_documents)
 
             for tab in tabs:
                 available_tabs.append(tab.id)
