@@ -1,6 +1,5 @@
 langchain
 langchain-community
-unstructured[docx,pptx]
 canvasapi
 beautifulsoup4
 lxml
@@ -13,3 +12,7 @@ openpyxl
 xlrd
 markdown
 pytz
+
+# installed from local development space
+# TODO: replace with PyPI package or GitHub release URL
+-e git+https://lsloan@github.com/umich-its-ai/langchain_youtube.git@83fe3e96ed33ea140c99c087f585ca8c16dc73f1#egg=LangChainYouTube
