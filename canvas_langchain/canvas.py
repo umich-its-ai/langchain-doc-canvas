@@ -128,9 +128,9 @@ class CanvasLoader(BaseLoader):
             ) from exc
 
         parsed_html = BeautifulSoup(html, 'html.parser')
-        iframes = parsed_html.find_all('iframe')
+        iframe_elements = parsed_html.find_all('iframe')
 
-        iframe_sources = [iframe.get('src') for iframe in iframes]
+        iframe_sources = [iframe.get('src') for iframe in iframe_elements]
 
         return iframe_sources
 
@@ -146,7 +146,14 @@ class CanvasLoader(BaseLoader):
             # Try loading captions from YouTube.  If that fails, try Kaltura.
             try:
                 loader = YouTubeCaptionLoader(iframe_source)
-                captions.extend(loader.load())
+                caption_documents: List[Document] = loader.load()
+
+                # add Canvas metadata to each caption `Document`
+                for caption in caption_documents:
+                    caption.metadata.update(
+                        self._make_page_metadata(page, prefix='canvas'))
+
+                captions.extend(caption_documents)
                 self.logMessage(
                     f'Loaded YouTube captions for iframe: "{iframe_source}"',
                     'DEBUG')
@@ -157,13 +164,23 @@ class CanvasLoader(BaseLoader):
                     f'for iframe: "{iframe_source}"',
                     'DEBUG')
             # YouTube failed, try Kaltura.
-            # TODO: Implement Kaltura logic
+            # TODO: Call LangChainKaltura here
             self.logMessage(
                 'Try loading Kaltura captions '
                 f'for iframe: "{iframe_source}"',
                 'DEBUG')
         return captions
 
+
+    def _make_page_metadata(self, page, prefix='') -> dict:
+        if prefix:
+            prefix = f'{prefix}_'
+        return {
+            f'{prefix}filename': page.title,
+            f'{prefix}source': self._get_page_url(page.url),
+            f'{prefix}kind': 'page',
+            f'{prefix}page_id': page.page_id
+        }
 
     def load_page(self, page) -> List[Document]:
         """Load a specific page."""
@@ -179,11 +196,7 @@ class CanvasLoader(BaseLoader):
 
                 return [Document(
                     page_content=page_body_text.strip(),
-                    metadata={
-                        "filename": page.title,
-                        "source": self._get_page_url(page.url),
-                        "kind": "page",
-                        "page_id": page.page_id}
+                    metadata=self._make_page_metadata(page),
                 ), *embedded_video_captions]
             else:
                 # Page with no content - None
