@@ -1,9 +1,11 @@
+import os
+
 from canvas_langchain.canvas import CanvasLoader
 
 loader = CanvasLoader(
-	api_url = "https://CANVAS_API_URL_GOES_HERE",
-	course_id = CANVAS_ID_GOES_HERE,
-	api_key = "API_KEY_GOES_HERE"
+    api_url=os.getenv('TEST_CANVAS_API_URL', 'https://umich.instructure.com'),
+    api_key=os.getenv('TEST_CANVAS_API_KEY', 'default_key_here'),
+    course_id=os.getenv('TEST_CANVAS_COURSE_ID', 'default_course_ID_here'),
 )
 
 try:
