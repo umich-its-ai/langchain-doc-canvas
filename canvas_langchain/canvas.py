@@ -134,11 +134,15 @@ class CanvasLoader(BaseLoader):
 
         return iframe_sources
 
-    def load_embedded_video_caption(self, page) -> List[Document]:
+    def load_embedded_video_caption(self, page=None, body=None) -> List[Document]:
         """
-        Load captions from a video embedded on a page (or other resource).
+        Load captions from a video embedded on a page or other resource.
         """
-        iframe_sources = self._get_iframe_sources(page.body)
+
+        if body is None:
+            body = page.body
+
+        iframe_sources = self._get_iframe_sources(body)
 
         # For each iframe source, load captions
         captions = []
@@ -148,9 +152,10 @@ class CanvasLoader(BaseLoader):
                 loader = YouTubeCaptionLoader(iframe_source)
                 caption_documents: List[Document] = loader.load()
 
+                if page is not None:
                 # add Canvas metadata to each caption `Document`
-                for caption in caption_documents:
-                    caption.metadata.update(
+                    for caption_document in caption_documents:
+                        caption_document.metadata.update(
                         self._make_page_metadata(page, prefix='canvas'))
 
                 captions.extend(caption_documents)
@@ -163,12 +168,13 @@ class CanvasLoader(BaseLoader):
                     'Failed to load YouTube captions '
                     f'for iframe: "{iframe_source}"',
                     'DEBUG')
+
             # YouTube failed, try Kaltura.
             # TODO: Call LangChainKaltura here
-            self.logMessage(
-                'Try loading Kaltura captions '
-                f'for iframe: "{iframe_source}"',
-                'DEBUG')
+            # self.logMessage(
+            #     'Try loading Kaltura captions '
+            #     f'for iframe: "{iframe_source}"',
+            #     'DEBUG')
         return captions
 
 
@@ -191,7 +197,8 @@ class CanvasLoader(BaseLoader):
                 return []
 
             if page.body:
-                embedded_video_captions = self.load_embedded_video_caption(page)
+                embedded_video_captions = self.load_embedded_video_caption(
+                    page=page)
                 page_body_text = self._get_html_as_string(page.body)
 
                 return [Document(
@@ -332,6 +339,10 @@ class CanvasLoader(BaseLoader):
             pdf_reader = PdfReader(BytesIO(file_contents))
 
             for i, page in enumerate(pdf_reader.pages):
+                # TODO: Here is where to search Powerpoint file for
+                #  embedded YouTube media.  I couldn't find the YouTube
+                #  links in the examples I tried.
+
                 docs.append(Document(
                     page_content=page.extract_text(),
                     metadata={ "filename": file.filename, "source": self._get_file_url(file.id), "kind": "file", "file_id": file.id, "page": i+1 }
@@ -395,6 +406,11 @@ class CanvasLoader(BaseLoader):
             with open(file_path, "wb") as binary_file:
                 # Write bytes to file
                 binary_file.write(file_contents)
+
+            # TODO: Here is where to search Powerpoint file for
+            #  embedded YouTube media.  Doesn't seem to be a
+            #  function to get the raw source of pages.  Try other
+            #  PPTX module?
 
             loader = UnstructuredPowerPointLoader(file_path)
             docs = loader.load()
@@ -513,25 +529,22 @@ class CanvasLoader(BaseLoader):
         return url_docs
 
     def load_syllabus(self, course) -> List[Document]:
-        try:
             syllabus_body = course.syllabus_body
-
             if not syllabus_body:
                 return []
 
-            page_body_text = self._get_html_as_string(course.syllabus_body)
+        documents = self.load_embedded_video_caption(body=syllabus_body)
 
-            if len(page_body_text.strip()) == 0:
-                return []
+        syllabus_body_text = self._get_html_as_string(syllabus_body).strip()
 
-            return [Document(
-                page_content=page_body_text.strip(),
-                metadata={ "filename": "Course Syllabus", "source": self._get_syllabus_url(), "kind": "syllabus" }
-            )]
-        except AttributeError:
-            return []
+        if len(syllabus_body_text) > 0:
+            documents.append(Document(
+                page_content=syllabus_body_text,
+                metadata={'filename': 'Course Syllabus',
+                          'source': self._get_syllabus_url(),
+                          'kind': 'syllabus'}))
 
-        return []
+        return documents
 
     def load_modules(self, course) -> List[Document]:
         """Loads all modules from a canvas course."""
