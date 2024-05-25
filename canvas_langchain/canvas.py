@@ -5,6 +5,7 @@ import json
 from io import BytesIO
 from typing import Any, List, Literal
 
+from canvasapi.page import Page
 from pydantic import BaseModel
 from datetime import date, datetime
 import pytz
@@ -134,15 +135,11 @@ class CanvasLoader(BaseLoader):
 
         return iframe_sources
 
-    def load_embedded_video_caption(self, page=None, body=None) -> List[Document]:
+    def load_embedded_video_caption(self, page: Page) -> List[Document]:
         """
         Load captions from a video embedded on a page or other resource.
         """
-
-        if body is None:
-            body = page.body
-
-        iframe_sources = self._get_iframe_sources(body)
+        iframe_sources = self._get_iframe_sources(page.body)
 
         # For each iframe source, load captions
         captions = []
@@ -152,7 +149,6 @@ class CanvasLoader(BaseLoader):
                 loader = YouTubeCaptionLoader(iframe_source)
                 caption_documents: List[Document] = loader.load()
 
-                if page is not None:
                 # add Canvas metadata to each caption `Document`
                     for caption_document in caption_documents:
                         caption_document.metadata.update(
@@ -184,7 +180,8 @@ class CanvasLoader(BaseLoader):
         return {
             f'{prefix}filename': page.title,
             f'{prefix}source': self._get_page_url(page.url),
-            f'{prefix}kind': 'page',
+            f'{prefix}kind':
+                'syllabus' if page.page_id == 'syllabus' else 'page',
             f'{prefix}page_id': page.page_id
         }
 
@@ -530,10 +527,17 @@ class CanvasLoader(BaseLoader):
 
     def load_syllabus(self, course) -> List[Document]:
             syllabus_body = course.syllabus_body
+        syllabus_url = self._get_syllabus_url()
             if not syllabus_body:
                 return []
 
-        documents = self.load_embedded_video_caption(body=syllabus_body)
+        documents = self.load_embedded_video_caption(
+            # There's no syllabus object; create analogous page object
+            Page(None, {
+                'body': syllabus_body,
+                'title': 'Course Syllabus',
+                'url': syllabus_url,
+                'page_id': 'syllabus'}))
 
         syllabus_body_text = self._get_html_as_string(syllabus_body).strip()
 
@@ -541,7 +545,7 @@ class CanvasLoader(BaseLoader):
             documents.append(Document(
                 page_content=syllabus_body_text,
                 metadata={'filename': 'Course Syllabus',
-                          'source': self._get_syllabus_url(),
+                          'source': syllabus_url,
                           'kind': 'syllabus'}))
 
         return documents
