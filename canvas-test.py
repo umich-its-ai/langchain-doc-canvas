@@ -12,7 +12,6 @@ try:
     documents = loader.load()
 
     print("\nDocuments:\n")
-    # print(documents)
     print('\n\n'.join(map(repr, documents)))
 
     print("\nInvalid files:\n")
