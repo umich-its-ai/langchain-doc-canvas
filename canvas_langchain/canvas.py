@@ -149,15 +149,21 @@ class CanvasLoader(BaseLoader):
                 loader = YouTubeCaptionLoader(iframe_source)
                 caption_documents: List[Document] = loader.load()
 
+                if caption_documents:
                 # add Canvas metadata to each caption `Document`
                     for caption_document in caption_documents:
                         caption_document.metadata.update(
-                        self._make_page_metadata(page, prefix='canvas'))
+                            self._make_page_metadata(page, use_canvas_prefix=True))
 
                 captions.extend(caption_documents)
                 self.logMessage(
                     f'Loaded YouTube captions for iframe: "{iframe_source}"',
                     'DEBUG')
+                else:
+                    self.logMessage(
+                        f'YouTube captions for iframe NOT LOADED: "{iframe_source}"',
+                        'DEBUG')
+
                 continue
             except ValueError as exc:
                 self.logMessage(
@@ -173,10 +179,9 @@ class CanvasLoader(BaseLoader):
             #     'DEBUG')
         return captions
 
-
-    def _make_page_metadata(self, page, prefix='') -> dict:
-        if prefix:
-            prefix = f'{prefix}_'
+    def _make_page_metadata(
+            self, page, use_canvas_prefix: bool = False) -> dict:
+        prefix = 'canvas_' if use_canvas_prefix else ''
         return {
             f'{prefix}filename': page.title,
             f'{prefix}source': self._get_page_url(page.url),
@@ -254,6 +259,7 @@ class CanvasLoader(BaseLoader):
 
     def load_assignment(self, assignment, module=None, locked=False, unlock_at_datetime=None) -> List[Document]:
         """Load a specific assignment."""
+        documents = []
         if locked and unlock_at_datetime:
             friendly_time = unlock_at_datetime
 
@@ -264,17 +270,31 @@ class CanvasLoader(BaseLoader):
             assignment_description = f"This assignment is part of the module {module.name}, which is locked until {formatted_datetime}."
         else:
             if assignment.description:
+                documents = self.load_embedded_video_caption(
+                    # The assignment object incompatible; create analogous page object
+                    Page(None, {
+                        'body': assignment.description,
+                        'title': assignment.name,
+                        'url': assignment.html_url,
+                        'page_id': 'assignment'}))
+
                 assignment_description = self._get_html_as_string(assignment.description)
                 assignment_description = f"Assignment Description: {assignment_description}\n\n"
             else:
                 assignment_description = ""
 
-        assignment_content=f"Assignment Name: {assignment.name} \n\n Assignment Due Date: {assignment.due_at} \n\n Assignment Points Possible: {assignment.points_possible} \n\n{assignment_description}"
+        assignment_content = (
+            f"Assignment Name: {assignment.name} \n\n "
+            f"Assignment Due Date: {assignment.due_at} \n\n "
+            f"Assignment Points Possible: {assignment.points_possible} \n\n "
+            f"{assignment_description}")
 
-        return [Document(
-            page_content=assignment_content,
-            metadata={ "filename": assignment.name, "source": assignment.html_url, "kind": "assignment", "assignment_id": assignment.id }
-        )]
+        return [Document(page_content=assignment_content,
+                         metadata={"filename": assignment.name,
+                                   "source": assignment.html_url,
+                                   "kind": "assignment",
+                                   "assignment_id": assignment.id}),
+                *documents]
 
     def _get_html_as_string(self, html) -> str:
         """Use BeautifulSoup 4 to parse a html string and return a simplified string."""
@@ -527,9 +547,10 @@ class CanvasLoader(BaseLoader):
 
     def load_syllabus(self, course) -> List[Document]:
             syllabus_body = course.syllabus_body
-        syllabus_url = self._get_syllabus_url()
             if not syllabus_body:
                 return []
+
+        syllabus_url = self._get_syllabus_url()
 
         documents = self.load_embedded_video_caption(
             # There's no syllabus object; create analogous page object
