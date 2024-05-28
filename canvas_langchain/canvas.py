@@ -153,7 +153,7 @@ class CanvasLoader(BaseLoader):
                 # add Canvas metadata to each caption `Document`
                     for caption_document in caption_documents:
                         caption_document.metadata.update(
-                            self._make_page_metadata(page, use_canvas_prefix=True))
+                            self._make_metadata(page, use_canvas_prefix=True))
 
                 captions.extend(caption_documents)
                 self.logMessage(
