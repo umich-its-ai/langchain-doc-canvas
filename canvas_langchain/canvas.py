@@ -179,14 +179,16 @@ class CanvasLoader(BaseLoader):
             #     'DEBUG')
         return captions
 
-    def _make_page_metadata(
-            self, page, use_canvas_prefix: bool = False) -> dict:
+    def _make_metadata(self,
+                       page: Page,
+                       use_canvas_prefix: bool = False) -> dict:
         prefix = 'canvas_' if use_canvas_prefix else ''
         return {
             f'{prefix}filename': page.title,
             f'{prefix}source': self._get_page_url(page.url),
-            f'{prefix}kind':
-                'syllabus' if page.page_id == 'syllabus' else 'page',
+            f'{prefix}kind': page.kind,
+            # f'{prefix}kind':
+            #     'syllabus' if page.page_id == 'syllabus' else 'page',
             f'{prefix}page_id': page.page_id
         }
 
@@ -205,7 +207,7 @@ class CanvasLoader(BaseLoader):
 
                 return [Document(
                     page_content=page_body_text.strip(),
-                    metadata=self._make_page_metadata(page),
+                    metadata=self._make_metadata(page),
                 ), *embedded_video_captions]
             else:
                 # Page with no content - None
@@ -612,7 +614,8 @@ class CanvasLoader(BaseLoader):
                 'body': syllabus_body,
                 'title': 'Course Syllabus',
                 'url': syllabus_url,
-                'page_id': 'syllabus'}))
+                'page_id': 'syllabus',
+                'kind': 'syllabus'}))
 
         syllabus_body_text = self._get_html_as_string(syllabus_body).strip()
 
