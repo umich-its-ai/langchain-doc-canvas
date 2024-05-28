@@ -416,6 +416,9 @@ class CanvasLoader(BaseLoader):
 
     def _load_pptx_file(self, file) -> List[Document]:
         file_contents = file.get_contents(binary=True)
+        file_url = self._get_file_url(file.id)
+
+        docs = []
 
         with tempfile.TemporaryDirectory() as temp_dir:
             file_path = f"{temp_dir}/{file.filename}"
@@ -428,13 +431,64 @@ class CanvasLoader(BaseLoader):
             #  embedded YouTube media.  Doesn't seem to be a
             #  function to get the raw source of pages.  Try other
             #  PPTX module?
+            #  unstructured doesn't seem to have access to page
+            #  contents.  However, PPTX files are (usually?) ZIP
+            #  files.  Unzipping an example PPTX file with embedded
+            #  YouTube video reveals the URL of the video within
+            #  an XML file.  Maybe pursue unzipping PPTX files
+            #  and diving into raw XML?
+            from pptx import Presentation
 
+            presentation = Presentation(file_path)
+
+            external_references = [
+                v.target_ref
+                for s in presentation.slides
+                for v in s.shapes.placeholders.part.rels.values()
+                if v.target_ref.lower().startswith('http')]
+
+            for r in external_references:
+                try:
+                    loader = YouTubeCaptionLoader(r)
+                    caption_documents: List[Document] = loader.load()
+
+                    if caption_documents:
+                        # add Canvas metadata to each caption `Document`
+                        # for caption_document in caption_documents:
+                        #     caption_document.metadata.update(
+                        #         self._make_metadata(Page(None, {
+                        #             'body': 'body',
+                        #             'title': 'title',
+                        #             'url': 'urlzzz',
+                        #             'page_id': 'page_id',
+                        #             'kind': 'file'
+                        #         }), use_canvas_prefix=True))
+
+                        docs.extend(caption_documents)
+                        self.logMessage(
+                            f'YouTube captions for PPTX file loaded: "{r}"',
+                            'DEBUG')
+                    else:
+                        self.logMessage(
+                            f'YouTube captions for PPTX file NOT LOADED: "{r}"',
+                            'DEBUG')
+
+                    continue
+                except ValueError as exc:
+                    self.logMessage(
+                        'Failed to load YouTube captions '
+                        f'for iframe: "{r}"',
+                        'DEBUG')
+
+            # Load text of PPTX slides
             loader = UnstructuredPowerPointLoader(file_path)
-            docs = loader.load()
+            slides_text_docs = loader.load()
 
-            for i, doc in enumerate(docs):
-                docs[i].metadata["filename"] = file.filename
-                docs[i].metadata["source"] = self._get_file_url(file.id)
+            for doc in slides_text_docs:
+                doc.metadata.update({'filename': file.filename,
+                                     'source': file_url})
+
+            docs.extend(slides_text_docs)
 
         return docs
 
