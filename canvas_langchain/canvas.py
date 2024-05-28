@@ -183,14 +183,23 @@ class CanvasLoader(BaseLoader):
                        page: Page,
                        use_canvas_prefix: bool = False) -> dict:
         prefix = 'canvas_' if use_canvas_prefix else ''
-        return {
+        url = (page.url if page.url.startswith('http')
+               else self._get_page_url(page.url))
+        kind = 'page'
+        try:
+            if page.kind:
+                kind = page.kind
+        except AttributeError as exc:
+            pass
+        metadata = {
             f'{prefix}filename': page.title,
-            f'{prefix}source': self._get_page_url(page.url),
-            f'{prefix}kind': page.kind,
-            # f'{prefix}kind':
-            #     'syllabus' if page.page_id == 'syllabus' else 'page',
-            f'{prefix}page_id': page.page_id
+            f'{prefix}source': url,
+            f'{prefix}kind': kind,
         }
+        if page.page_id is not None:
+            metadata['page_id'] = page.page_id
+
+        return metadata
 
     def load_page(self, page) -> List[Document]:
         """Load a specific page."""
@@ -212,8 +221,8 @@ class CanvasLoader(BaseLoader):
             else:
                 # Page with no content - None
                 return []
-        except AttributeError:
-            self._error_logger(error=error, action="load_page", entity_type="page", entity_id=page.page_id)
+        except AttributeError as error:
+            self._error_logger(error=error.name, action="load_page", entity_type="page", entity_id=page.page_id)
             return []
 
     def load_announcements(self, canvas, course) -> List[Document]:
@@ -429,20 +438,14 @@ class CanvasLoader(BaseLoader):
                 # Write bytes to file
                 binary_file.write(file_contents)
 
-            # TODO: Here is where to search Powerpoint file for
-            #  embedded YouTube media.  Doesn't seem to be a
-            #  function to get the raw source of pages.  Try other
-            #  PPTX module?
-            #  unstructured doesn't seem to have access to page
-            #  contents.  However, PPTX files are (usually?) ZIP
-            #  files.  Unzipping an example PPTX file with embedded
-            #  YouTube video reveals the URL of the video within
-            #  an XML file.  Maybe pursue unzipping PPTX files
-            #  and diving into raw XML?
             from pptx import Presentation
 
             presentation = Presentation(file_path)
 
+            # Get all "http" references, some may be for YouTube.
+            # YouTube URLs take on a few forms, so it's easiest to
+            # try all URLs.  Those that aren't YouTube will fail
+            # gracefully.
             external_references = [
                 v.target_ref
                 for s in presentation.slides
@@ -456,15 +459,14 @@ class CanvasLoader(BaseLoader):
 
                     if caption_documents:
                         # add Canvas metadata to each caption `Document`
-                        # for caption_document in caption_documents:
-                        #     caption_document.metadata.update(
-                        #         self._make_metadata(Page(None, {
-                        #             'body': 'body',
-                        #             'title': 'title',
-                        #             'url': 'urlzzz',
-                        #             'page_id': 'page_id',
-                        #             'kind': 'file'
-                        #         }), use_canvas_prefix=True))
+                        for caption_document in caption_documents:
+                            caption_document.metadata.update(
+                                self._make_metadata(Page(None, {
+                                    'title': file.filename,
+                                    'url': file_url,
+                                    'page_id': None,
+                                    'kind': 'file'
+                                }), use_canvas_prefix=True))
 
                         docs.extend(caption_documents)
                         self.logMessage(
