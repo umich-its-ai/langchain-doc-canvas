@@ -19,4 +19,3 @@ xlrd==2.0.1
 # TODO: replace with PyPI package or GitHub release URL
 #-e git+https://github.com/umich-its-ai/langchain_youtube.git@83fe3e96ed33ea140c99c087f585ca8c16dc73f1#egg=LangChainYouTube
 -e ../langchain_youtube
-
