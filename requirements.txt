@@ -1,15 +1,21 @@
-langchain
-langchain-community
-unstructured[docx,pptx]
-canvasapi
-beautifulsoup4
-lxml
-PyPDF2[crypto]
-striprtf
-docx2txt
-pandas
-pydantic
-openpyxl
-xlrd
-markdown
-pytz
+beautifulsoup4==4.12.3
+canvasapi==3.2.0
+docx2txt==0.8
+langchain==0.2.1
+langchain-community==0.2.1
+lxml==5.2.2
+Markdown==3.6
+openpyxl==3.1.2
+pandas==2.2.2
+pydantic==2.7.1
+PyPDF2[crypto]==3.0.1
+python-pptx==0.6.23
+pytz==2024.1
+striprtf==0.0.26
+unstructured[docx,pptx]==0.14.2
+xlrd==2.0.1
+
+# installed from local development space
+# TODO: replace with PyPI package or GitHub release URL
+#-e git+https://github.com/umich-its-ai/langchain_youtube.git@83fe3e96ed33ea140c99c087f585ca8c16dc73f1#egg=LangChainYouTube
+-e ../langchain_youtube
