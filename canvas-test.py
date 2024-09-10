@@ -27,5 +27,8 @@ try:
 	print("\nProgress:\n")
 	print(loader.get_details('DEBUG'))
 	print("")
-except Exception:
+except Exception as exc:
 	details = loader.get_details('DEBUG')
+	print(details)
+
+	print(exc)

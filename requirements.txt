@@ -1,6 +1,6 @@
 langchain
 langchain-community
-unstructured[docx,pptx]
+unstructured[docx,pptx,xlsx]
 canvasapi
 beautifulsoup4
 lxml
