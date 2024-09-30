@@ -479,6 +479,7 @@ class CanvasLoader(BaseLoader):
 
             for module in modules:
                 locked = False
+                unlock_at_datetime = None
 
                 if module.unlock_at:
                     unlock_at_datetime = datetime.strptime(module.unlock_at, '%Y-%m-%dT%H:%M:%SZ')
