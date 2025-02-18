@@ -547,13 +547,10 @@ class CanvasLoader(BaseLoader):
     def load_mivideo(self, course, user) -> List[Document]:
         """Loads all MiVideo (Kaltura) media captions from a canvas course."""
 
-        mivideo_documents = []
-
         api = MiVideoAPI(
             host=os.getenv('MIVIDEO_API_HOST'),
             authId=os.getenv('MIVIDEO_API_AUTH_ID'),
-            authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'),
-        )
+            authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'))
 
         languages = os.getenv('LANGUAGE_CODES_CSV')
         if not languages:
@@ -569,14 +566,12 @@ class CanvasLoader(BaseLoader):
         captionLoader = KalturaCaptionLoader(
             apiClient=api,
             courseId=course_id,
-            # userId=os.getenv('USERID'),
             userId=user_id,
             languages=languages,
             urlTemplate=os.getenv('SOURCEURLTEMPLATE'),
-            chunkSeconds=int(os.getenv('CHUNKSECONDS')
-                             or KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT),
-        )
-
+            chunkSeconds=int(
+                os.getenv('CHUNKSECONDS') or
+                KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT))
 
         mivideo_documents = captionLoader.load()
 
