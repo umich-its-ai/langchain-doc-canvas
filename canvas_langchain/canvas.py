@@ -4,6 +4,9 @@ import tempfile
 import json
 from io import BytesIO
 from typing import Any, List, Literal
+
+from LangChainKaltura import KalturaCaptionLoader
+from LangChainKaltura.MiVideoAPI import MiVideoAPI
 from pydantic import BaseModel
 from datetime import date, datetime
 import pytz
@@ -544,6 +547,54 @@ class CanvasLoader(BaseLoader):
 
         return module_documents
 
+    def load_mivideo(self, course, user) -> List[Document]:
+        """Loads all MiVideo (Kaltura) media captions from a canvas course."""
+
+        mivideo_documents = []
+
+        api = MiVideoAPI(
+            host=os.getenv('MIVIDEO_API_HOST'),
+            authId=os.getenv('MIVIDEO_API_AUTH_ID'),
+            authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'),
+        )
+
+        languages = os.getenv('LANGUAGE_CODES_CSV')
+        if not languages:
+            languages = KalturaCaptionLoader.LANGUAGES_DEFAULT
+        else:
+            languages = set(languages.split(','))
+
+        course_id = course.id
+        user_id = user.id
+
+        user_id = '813788'
+
+        captionLoader = KalturaCaptionLoader(
+            apiClient=api,
+            courseId=course_id,
+            # userId=os.getenv('USERID'),
+            userId=user_id,
+            languages=languages,
+            urlTemplate=os.getenv('SOURCEURLTEMPLATE'),
+            chunkSeconds=int(os.getenv('CHUNKSECONDS')
+                             or KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT),
+        )
+
+
+        mivideo_documents = captionLoader.load()
+
+        courseUrlTemplate = os.getenv('COURSEURLTEMPLATE')
+
+        if courseUrlTemplate:
+            def update_metadata(doc):
+                doc.metadata['course_context'] = courseUrlTemplate.format(
+                    courseId=course_id)
+                return doc
+
+            mivideo_documents = list(map(update_metadata, mivideo_documents))
+
+        return mivideo_documents
+
     def load(self) -> List[Document]:
         """Load documents."""
 
@@ -587,41 +638,43 @@ class CanvasLoader(BaseLoader):
                 self.logMessage(
                     'Load MiVideo (Kaltura) media captions',
                     'DEBUG')
-                mivideo_documents = self.load_mivideo(course)
+                mivideo_documents = self.load_mivideo(
+                    course,
+                    canvas.get_current_user())
                 docs.extend(mivideo_documents)
 
-            for tab in tabs:
-                available_tabs.append(tab.id)
-
-            # Load modules
-            if "modules" in available_tabs:
-                self.logMessage(message="Load modules", level="DEBUG")
-                module_documents = self.load_modules(course=course)
-                docs = docs + module_documents
-
-            # Load pages
-            if "pages" in available_tabs:
-                self.logMessage(message="Load pages", level="DEBUG")
-                page_documents = self.load_pages(course=course)
-                docs = docs + page_documents
-
-            # Load announcements
-            if "announcements" in available_tabs:
-                self.logMessage(message="Load announcements", level="DEBUG")
-                announcement_documents = self.load_announcements(canvas=canvas, course=course)
-                docs = docs + announcement_documents
-
-            # Load assignments
-            if "assignments" in available_tabs:
-                self.logMessage(message="Load assignments", level="DEBUG")
-                assignment_documents = self.load_assignments(course=course)
-                docs = docs + assignment_documents
-
-            # Load files
-            if "files" in available_tabs:
-                self.logMessage(message="Load files", level="DEBUG")
-                file_documents = self.load_files(course=course)
-                docs = docs + file_documents
+            # for tab in tabs:
+            #     available_tabs.append(tab.id)
+            #
+            # # Load modules
+            # if "modules" in available_tabs:
+            #     self.logMessage(message="Load modules", level="DEBUG")
+            #     module_documents = self.load_modules(course=course)
+            #     docs = docs + module_documents
+            #
+            # # Load pages
+            # if "pages" in available_tabs:
+            #     self.logMessage(message="Load pages", level="DEBUG")
+            #     page_documents = self.load_pages(course=course)
+            #     docs = docs + page_documents
+            #
+            # # Load announcements
+            # if "announcements" in available_tabs:
+            #     self.logMessage(message="Load announcements", level="DEBUG")
+            #     announcement_documents = self.load_announcements(canvas=canvas, course=course)
+            #     docs = docs + announcement_documents
+            #
+            # # Load assignments
+            # if "assignments" in available_tabs:
+            #     self.logMessage(message="Load assignments", level="DEBUG")
+            #     assignment_documents = self.load_assignments(course=course)
+            #     docs = docs + assignment_documents
+            #
+            # # Load files
+            # if "files" in available_tabs:
+            #     self.logMessage(message="Load files", level="DEBUG")
+            #     file_documents = self.load_files(course=course)
+            #     docs = docs + file_documents
 
             # Replace null character with space
             for doc in docs:

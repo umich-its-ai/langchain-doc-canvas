@@ -13,3 +13,4 @@ openpyxl
 xlrd
 markdown
 pytz
+git+https://github.com/lsloan/langchain_kaltura@13-lsloan-mivideo-api#egg=LangChainKaltura
