@@ -635,38 +635,38 @@ class CanvasLoader(BaseLoader):
                     canvas.get_current_user())
                 docs.extend(mivideo_documents)
 
-            # for tab in tabs:
-            #     available_tabs.append(tab.id)
-            #
-            # # Load modules
-            # if "modules" in available_tabs:
-            #     self.logMessage(message="Load modules", level="DEBUG")
-            #     module_documents = self.load_modules(course=course)
-            #     docs = docs + module_documents
-            #
-            # # Load pages
-            # if "pages" in available_tabs:
-            #     self.logMessage(message="Load pages", level="DEBUG")
-            #     page_documents = self.load_pages(course=course)
-            #     docs = docs + page_documents
-            #
-            # # Load announcements
-            # if "announcements" in available_tabs:
-            #     self.logMessage(message="Load announcements", level="DEBUG")
-            #     announcement_documents = self.load_announcements(canvas=canvas, course=course)
-            #     docs = docs + announcement_documents
-            #
-            # # Load assignments
-            # if "assignments" in available_tabs:
-            #     self.logMessage(message="Load assignments", level="DEBUG")
-            #     assignment_documents = self.load_assignments(course=course)
-            #     docs = docs + assignment_documents
-            #
-            # # Load files
-            # if "files" in available_tabs:
-            #     self.logMessage(message="Load files", level="DEBUG")
-            #     file_documents = self.load_files(course=course)
-            #     docs = docs + file_documents
+            for tab in tabs:
+                available_tabs.append(tab.id)
+
+            # Load modules
+            if "modules" in available_tabs:
+                self.logMessage(message="Load modules", level="DEBUG")
+                module_documents = self.load_modules(course=course)
+                docs = docs + module_documents
+
+            # Load pages
+            if "pages" in available_tabs:
+                self.logMessage(message="Load pages", level="DEBUG")
+                page_documents = self.load_pages(course=course)
+                docs = docs + page_documents
+
+            # Load announcements
+            if "announcements" in available_tabs:
+                self.logMessage(message="Load announcements", level="DEBUG")
+                announcement_documents = self.load_announcements(canvas=canvas, course=course)
+                docs = docs + announcement_documents
+
+            # Load assignments
+            if "assignments" in available_tabs:
+                self.logMessage(message="Load assignments", level="DEBUG")
+                assignment_documents = self.load_assignments(course=course)
+                docs = docs + assignment_documents
+
+            # Load files
+            if "files" in available_tabs:
+                self.logMessage(message="Load files", level="DEBUG")
+                file_documents = self.load_files(course=course)
+                docs = docs + file_documents
 
             # Replace null character with space
             for doc in docs:
