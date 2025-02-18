@@ -1,28 +1,25 @@
 """Loads Pages, Announcements, Assignments and Files from a Canvas Course site."""
+import json
+import logging
 import os
 import tempfile
-import json
+from datetime import date, datetime
 from io import BytesIO
 from typing import Any, List, Literal
 
+import pytz
 from LangChainKaltura import KalturaCaptionLoader
 from LangChainKaltura.MiVideoAPI import MiVideoAPI
-from pydantic import BaseModel
-from datetime import date, datetime
-import pytz
-
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
-
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import UnstructuredExcelLoader
-from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_community.document_loaders import UnstructuredMarkdownLoader
+from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_community.document_loaders import UnstructuredURLLoader
-
+from pydantic import BaseModel
 from striprtf.striprtf import rtf_to_text
 
-import logging
 logger = logging.getLogger(__name__)
 
 ch = logging.StreamHandler()
