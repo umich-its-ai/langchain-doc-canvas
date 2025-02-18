@@ -1,5 +1,5 @@
 """Loads Pages, Announcements, Assignments and Files from a Canvas Course site."""
-
+import os
 import tempfile
 import json
 from io import BytesIO
