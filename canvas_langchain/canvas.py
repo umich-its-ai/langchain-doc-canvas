@@ -575,7 +575,7 @@ class CanvasLoader(BaseLoader):
 
         mivideo_documents = captionLoader.load()
 
-        courseUrlTemplate = os.getenv('COURSEURLTEMPLATE')
+        courseUrlTemplate = os.getenv('CANVAS_COURSE_URL_TEMPLATE')
 
         if courseUrlTemplate:
             def update_metadata(doc):
