@@ -35,18 +35,18 @@ in the `.env` file for more information.
 > Do not set the `CANVAS_ALT_USER_ID_DEV_ONLY` variable in a production
 > environment or other shared environment. It is only for development purposes.
 
-### Docker
+### Running with Docker
 
-The following commands builds a Docker image named `ldc_dev` containing Python,
+The following command builds a Docker image named `ldc_dev` containing Python,
 all the required dependencies, and the project code, then runs it.
 
 ```bash
 docker build -t ldc_dev . && docker run -it ldc_dev
 ```
 
-### Without Docker
+### Running with Python Virtual Environment
 
-#### Install Python Virtual Environment
+#### Create a Python Virtual Environment
 
 ```bash
 python -mvenv .venv
@@ -65,7 +65,7 @@ pip install -r requirements.txt
 python canvas-test.py
 ```
 
-## Usage example:
+## Usage example
 
 > #### 💡 Note
 > See the `canvas-test.py` file for a more complete example.
