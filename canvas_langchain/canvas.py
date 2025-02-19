@@ -559,16 +559,16 @@ class CanvasLoader(BaseLoader):
             languages = set(languages.split(','))
 
         course_id = course.id
-        user_id = user.id
 
-        user_id = '813788'
+        # Use a different user ID for development
+        user_id = str(os.getenv('CANVAS_ALT_USER_ID_DEV_ONLY', user.id))
 
         captionLoader = KalturaCaptionLoader(
             apiClient=api,
             courseId=course_id,
             userId=user_id,
             languages=languages,
-            urlTemplate=os.getenv('SOURCEURLTEMPLATE'),
+            urlTemplate=os.getenv('MIVIDEO_SOURCE_URL_TEMPLATE'),
             chunkSeconds=int(
                 os.getenv('CHUNKSECONDS') or
                 KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT))
