@@ -13,6 +13,22 @@ The following file types are supported:
 
 You can build/run the provided Dockerfile, or install dependencies as described below
 
+### Environment Variables
+
+Create a `.env` file in the root of the project by copying the `.env.example`
+file.
+
+```bash
+cp .env.example .env
+```
+
+Edit the new `.env` file to fill in the correct values. Refer to the comments
+in the `.env` file for more information.
+
+> #### 🔔 Important
+> Do not set the `CANVAS_ALT_USER_ID_DEV_ONLY` variable in a production
+> environment or other shared environment. It is only for development purposes.
+
 ### Docker
 
 Edit `canvas-test.py`, fill in the correct `api_url`, `api_key`, and `course_id`.
