@@ -1,19 +1,25 @@
-# Canvas langchain document loader
+# Canvas LangChain document loader
 
-Features:
+## Features
 
-Indexes Canvas Modules, Pages, Announcements, Assignments and Files
+Indexes Canvas Modules, Pages, Announcements, Assignments, and Files
 
 The following file types are supported:
-  `md` `htm` `html` `docx` `xls` `xlsx` `pptx` `pdf` `rtf` `txt`
+`md` `htm` `html` `docx` `xls` `xlsx` `pptx` `pdf` `rtf` `txt` `csv`
 
 (`doc` support would require libreoffice, so has not been implemented in this library)
+
+If a course has a MiVideo (Kaltura) "Media Gallery" available, the loader will
+also index the captions of the media in the gallery. At this time, the loader
+does not index captions of media embedded in Canvas Pages or other content.
 
 ## Running locally (development)
 
 You can build/run the provided Dockerfile, or install dependencies as described below
 
-### Environment Variables
+### Configure Environment
+
+This environment may be used with Docker or without.
 
 Create a `.env` file in the root of the project by copying the `.env.example`
 file.
@@ -31,29 +37,46 @@ in the `.env` file for more information.
 
 ### Docker
 
-Edit `canvas-test.py`, fill in the correct `api_url`, `api_key`, and `course_id`.
-
-Run (this also builds docker):
+The following commands builds a Docker image named `ldc_dev` containing Python,
+all the required dependencies, and the project code, then runs it.
 
 ```bash
-docker run -it $(docker build -q .)
+docker build -t ldc_dev . && docker run -it ldc_dev
 ```
 
-### Install Dependencies
+### Without Docker
+
+#### Install Python Virtual Environment
 
 ```bash
+python -mvenv .venv
+. .venv/bin/activate
+```
+
+#### Install Dependencies
+```bash
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+#### Run
+
+```bash
+python canvas-test.py
+```
+
 ## Usage example:
+
+> #### 💡 Note
+> See the `canvas-test.py` file for a more complete example.
 
 ```python
 from canvas_langchain.canvas import CanvasLoader
 
 loader = CanvasLoader(
-	api_url = "https://CANVAS_API_URL_GOES_HERE",
-	course_id = CANVAS_ID_GOES_HERE,
-	api_key = "API_KEY_GOES_HERE"
+	api_url="https://CANVAS_API_URL_GOES_HERE",
+	api_key="CANVAS_API_KEY_GOES_HERE",
+	course_id=int(CANVAS_COURSE_ID_GOES_HERE),
 )
 
 try:
