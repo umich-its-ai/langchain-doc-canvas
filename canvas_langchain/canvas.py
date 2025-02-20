@@ -552,7 +552,7 @@ class CanvasLoader(BaseLoader):
             authId=os.getenv('MIVIDEO_API_AUTH_ID'),
             authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'))
 
-        languages = os.getenv('LANGUAGE_CODES_CSV')
+        languages = os.getenv('MIVIDEO_LANGUAGE_CODES_CSV')
         if not languages:
             languages = KalturaCaptionLoader.LANGUAGES_DEFAULT
         else:
@@ -570,7 +570,7 @@ class CanvasLoader(BaseLoader):
             languages=languages,
             urlTemplate=os.getenv('MIVIDEO_SOURCE_URL_TEMPLATE'),
             chunkSeconds=int(
-                os.getenv('CHUNKSECONDS') or
+                os.getenv('MIVIDEO_CHUNK_SECONDS') or
                 KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT))
 
         mivideo_documents = captionLoader.load()
