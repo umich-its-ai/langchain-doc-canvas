@@ -10,6 +10,8 @@ from typing import Any, List, Literal
 import pytz
 from LangChainKaltura import KalturaCaptionLoader
 from LangChainKaltura.MiVideoAPI import MiVideoAPI
+from canvasapi.course import Course
+from canvasapi.user import User
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
 from langchain_community.document_loaders import Docx2txtLoader
@@ -544,8 +546,17 @@ class CanvasLoader(BaseLoader):
 
         return module_documents
 
-    def load_mivideo(self, course, user) -> List[Document]:
-        """Loads all MiVideo media captions from a Canvas course."""
+    def load_mivideo(self, course: Course, user: User) -> List[Document]:
+        """
+        Load MiVideo media captions from Media Gallery LTI.
+
+        :param course: Canvas course
+        :type course: Course
+        :param user: Canvas user
+        :type user: User
+        :return: List of LangChain Document objects containing media captions
+        :rtype: List[Document]
+        """
 
         api = MiVideoAPI(
             host=os.getenv('MIVIDEO_API_HOST'),
@@ -584,6 +595,10 @@ class CanvasLoader(BaseLoader):
                 return doc
 
             mivideo_documents = list(map(update_metadata, mivideo_documents))
+
+        self.indexed_items.extend(
+            set('MiVideo:' + doc.metadata['media_id'] for doc in
+                mivideo_documents))
 
         return mivideo_documents
 
