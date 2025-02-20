@@ -545,7 +545,7 @@ class CanvasLoader(BaseLoader):
         return module_documents
 
     def load_mivideo(self, course, user) -> List[Document]:
-        """Loads all MiVideo (Kaltura) media captions from a canvas course."""
+        """Loads all MiVideo media captions from a Canvas course."""
 
         api = MiVideoAPI(
             host=os.getenv('MIVIDEO_API_HOST'),
@@ -625,10 +625,10 @@ class CanvasLoader(BaseLoader):
             # Useful because LTIs all have IDs like 'external_tool'
             available_tabs_labels = [t.label for t in tabs]
 
-            # Load MiVideo (Kaltura) media captions from Media Gallery LTI
+            # Load MiVideo media captions from Media Gallery LTI
             if 'Media Gallery' in available_tabs_labels:
                 self.logMessage(
-                    'Load MiVideo (Kaltura) media captions',
+                    'Load MiVideo Media Gallery captions',
                     'DEBUG')
                 mivideo_documents = self.load_mivideo(
                     course,

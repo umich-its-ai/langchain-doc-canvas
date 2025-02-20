@@ -9,7 +9,7 @@ The following file types are supported:
 
 (`doc` support would require libreoffice, so has not been implemented in this library)
 
-If a course has a MiVideo (Kaltura) "Media Gallery" available, the loader will
+If a course has a MiVideo "Media Gallery" available, the loader will
 also index the captions of the media in the gallery. At this time, the loader
 does not index captions of media embedded in Canvas Pages or other content.
 
