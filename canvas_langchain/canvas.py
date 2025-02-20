@@ -132,7 +132,7 @@ class CanvasLoader(BaseLoader):
             else:
                 # Page with no content - None
                 return []
-        except AttributeError:
+        except AttributeError as error:
             self._error_logger(error=error, action="load_page", entity_type="page", entity_id=page.page_id)
             return []
 
@@ -390,7 +390,13 @@ class CanvasLoader(BaseLoader):
         """Load a specific file."""
         file_documents = []
 
+        filename = getattr(file, "filename")
         file_content_type = getattr(file, "content-type")
+
+        if file_content_type == "application/vnd.ms-excel":
+            _, extension = os.path.splitext(filename)
+            if extension == ".csv":
+                file_content_type = "text/csv"
 
         allowed_content_types = [
             "text/markdown", # md
@@ -474,6 +480,7 @@ class CanvasLoader(BaseLoader):
 
             for module in modules:
                 locked = False
+                unlock_at_datetime = None
 
                 if module.unlock_at:
                     unlock_at_datetime = datetime.strptime(module.unlock_at, '%Y-%m-%dT%H:%M:%SZ')
