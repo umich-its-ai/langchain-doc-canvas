@@ -20,8 +20,8 @@ except ImportError:
 
 loader = CanvasLoader(
     api_url=os.getenv('TEST_CANVAS_API_URL', 'https://umich.instructure.com'),
-    api_key=os.getenv('TEST_CANVAS_API_KEY', 'default_key_here'),
-    course_id=os.getenv('TEST_CANVAS_COURSE_ID', 'default_course_ID_here'),
+    api_key=os.getenv('TEST_CANVAS_API_KEY'),
+    course_id=int(os.getenv('TEST_CANVAS_COURSE_ID')),
 )
 
 try:
