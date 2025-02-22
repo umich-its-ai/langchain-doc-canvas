@@ -656,6 +656,9 @@ class CanvasLoader(BaseLoader):
                     course,
                     canvas.get_current_user())
                 docs.extend(mivideo_documents)
+                self.logMessage(
+                    f'LangChain Documents for MiVideo Media Gallery captions: {len(mivideo_documents)}',
+                    'DEBUG')
 
             for tab in tabs:
                 available_tabs.append(tab.id)
