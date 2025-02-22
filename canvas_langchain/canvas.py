@@ -10,8 +10,6 @@ from typing import Any, List, Literal
 import pytz
 from LangChainKaltura import KalturaCaptionLoader
 from LangChainKaltura.MiVideoAPI import MiVideoAPI
-from canvasapi.course import Course
-from canvasapi.user import User
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
 from langchain_community.document_loaders import Docx2txtLoader
@@ -553,14 +551,14 @@ class CanvasLoader(BaseLoader):
 
         return module_documents
 
-    def load_mivideo(self, course: Course, user: User) -> List[Document]:
+    def load_mivideo(self, course_id: int, user_id: int) -> List[Document]:
         """
         Load MiVideo media captions from Media Gallery LTI.
 
-        :param course: Canvas course
-        :type course: Course
-        :param user: Canvas user
-        :type user: User
+        :param course_id: Canvas course ID
+        :type course_id: int
+        :param user_id: Canvas user ID
+        :type user_id: int
         :return: List of LangChain Document objects containing media captions
         :rtype: List[Document]
         """
@@ -576,15 +574,10 @@ class CanvasLoader(BaseLoader):
         else:
             languages = set(languages.split(','))
 
-        course_id = course.id
-
-        # Use a different user ID for development
-        user_id = str(os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY', user.id))
-
         captionLoader = KalturaCaptionLoader(
             apiClient=api,
-            courseId=course_id,
-            userId=user_id,
+            courseId=str(int(course_id)),
+            userId=str(int(user_id)),
             languages=languages,
             urlTemplate=os.getenv('MIVIDEO_SOURCE_URL_TEMPLATE'),
             chunkSeconds=int(
@@ -653,8 +646,10 @@ class CanvasLoader(BaseLoader):
                     'Load MiVideo Media Gallery captions',
                     'DEBUG')
                 mivideo_documents = self.load_mivideo(
-                    course,
-                    canvas.get_current_user())
+                    self.returned_course_id,
+                    # Allow overriding user ID in development
+                    os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
+                              canvas.get_current_user().id))
                 docs.extend(mivideo_documents)
                 self.logMessage(
                     f'LangChain Documents for MiVideo Media Gallery captions: {len(mivideo_documents)}',
