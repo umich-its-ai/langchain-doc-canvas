@@ -579,7 +579,7 @@ class CanvasLoader(BaseLoader):
         course_id = course.id
 
         # Use a different user ID for development
-        user_id = str(os.getenv('CANVAS_ALT_USER_ID_DEV_ONLY', user.id))
+        user_id = str(os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY', user.id))
 
         captionLoader = KalturaCaptionLoader(
             apiClient=api,

@@ -32,7 +32,7 @@ Edit the new `.env` file to fill in the correct values. Refer to the comments
 in the `.env` file for more information.
 
 > #### 🔔 Important
-> Do not set the `CANVAS_ALT_USER_ID_DEV_ONLY` variable in a production
+> Do not set the `CANVAS_USER_ID_OVERRIDE_DEV_ONLY` variable in a production
 > environment or other shared environment. It is only for development purposes.
 
 ### Running with Docker
