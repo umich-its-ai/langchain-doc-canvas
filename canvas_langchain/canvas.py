@@ -409,7 +409,7 @@ class CanvasLoader(BaseLoader):
         ]
 
         if file_content_type in allowed_content_types:
-            self.logMessage(message=f"Processing {file.filename} {file.mime_class}", level="DEBUG")
+            self.logMessage(message=f"Processing file: {repr(file.filename)} ({file.mime_class})", level="DEBUG")
 
             if file_content_type == "text/plain":
                 file_documents = file_documents + self._load_text_file(file)
@@ -499,7 +499,7 @@ class CanvasLoader(BaseLoader):
                                 # Don't try indexing page
                                 continue
 
-                            self.logMessage(message=f"Indexing page {module_item.title} ({module_item.page_url})", level="DEBUG")
+                            self.logMessage(message=f"Indexing page: {repr(module_item.title)} ({module_item.page_url})", level="DEBUG")
 
                             try:
                                 page = course.get_page(module_item.page_url)
@@ -517,7 +517,7 @@ class CanvasLoader(BaseLoader):
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_assignment", entity_type="assignment", entity_id=module_item.content_id)
                     elif module_item.type == "File":
-                        self.logMessage(message=f"Indexing file {module_item.title} ({module_item.content_id})", level="DEBUG")
+                        self.logMessage(message=f"Indexing file {repr(module_item.title)} ({module_item.content_id})", level="DEBUG")
                         if f"File:{module_item.content_id}" not in self.indexed_items:
                             try:
                                 file = course.get_file(module_item.content_id)
@@ -535,7 +535,7 @@ class CanvasLoader(BaseLoader):
                             # Don't try indexing external URL
                             continue
 
-                        self.logMessage(message=f"Indexing file {module_item.title} ({module_item.external_url})", level="DEBUG")
+                        self.logMessage(message=f"Indexing file {repr(module_item.title)} ({module_item.external_url})", level="DEBUG")
 
                         if f"ExternalUrl:{module_item.external_url}" not in self.indexed_items:
                             try:
@@ -643,7 +643,7 @@ class CanvasLoader(BaseLoader):
             # Load MiVideo media captions from Media Gallery LTI
             if 'Media Gallery' in available_tabs_labels:
                 self.logMessage(
-                    'Load MiVideo Media Gallery captions',
+                    'Loading MiVideo Media Gallery captions',
                     'DEBUG')
                 mivideo_documents = self.load_mivideo(
                     self.returned_course_id,
@@ -652,7 +652,7 @@ class CanvasLoader(BaseLoader):
                               canvas.get_current_user().id))
                 docs.extend(mivideo_documents)
                 self.logMessage(
-                    f'LangChain Documents for MiVideo Media Gallery captions: {len(mivideo_documents)}',
+                    f'Loaded MiVideo Media Gallery captions: {len(mivideo_documents)}',
                     'DEBUG')
 
             for tab in tabs:
