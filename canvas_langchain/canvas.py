@@ -563,42 +563,52 @@ class CanvasLoader(BaseLoader):
         :rtype: List[Document]
         """
 
-        api = MiVideoAPI(
-            host=os.getenv('MIVIDEO_API_HOST'),
-            authId=os.getenv('MIVIDEO_API_AUTH_ID'),
-            authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'))
+        mivideo_documents = []
 
-        languages = os.getenv('MIVIDEO_LANGUAGE_CODES_CSV')
-        if not languages:
-            languages = KalturaCaptionLoader.LANGUAGES_DEFAULT
-        else:
-            languages = set(languages.split(','))
+        try:
+            api = MiVideoAPI(
+                host=os.getenv('MIVIDEO_API_HOST'),
+                authId=os.getenv('MIVIDEO_API_AUTH_ID'),
+                authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'))
 
-        captionLoader = KalturaCaptionLoader(
-            apiClient=api,
-            courseId=str(int(course_id)),
-            userId=str(int(user_id)),
-            languages=languages,
-            urlTemplate=os.getenv('MIVIDEO_SOURCE_URL_TEMPLATE'),
-            chunkSeconds=int(
-                os.getenv('MIVIDEO_CHUNK_SECONDS') or
-                KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT))
+            languages = os.getenv('MIVIDEO_LANGUAGE_CODES_CSV')
+            if not languages:
+                languages = KalturaCaptionLoader.LANGUAGES_DEFAULT
+            else:
+                languages = set(languages.split(','))
 
-        mivideo_documents = captionLoader.load()
+            caption_loader = KalturaCaptionLoader(
+                apiClient=api,
+                courseId=str(int(course_id)),
+                userId=str(int(user_id)),
+                languages=languages,
+                urlTemplate=os.getenv('MIVIDEO_SOURCE_URL_TEMPLATE'),
+                chunkSeconds=int(
+                    os.getenv('MIVIDEO_CHUNK_SECONDS') or
+                    KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT))
 
-        courseUrlTemplate = os.getenv('CANVAS_COURSE_URL_TEMPLATE')
+            mivideo_documents = caption_loader.load()
 
-        if courseUrlTemplate:
-            def update_metadata(doc):
-                doc.metadata['course_context'] = courseUrlTemplate.format(
-                    courseId=course_id)
-                return doc
+            course_url_template = os.getenv('CANVAS_COURSE_URL_TEMPLATE')
 
-            mivideo_documents = list(map(update_metadata, mivideo_documents))
+            # set `course_context` metadata field with course URL
+            if course_url_template:
+                def update_metadata(doc):
+                    doc.metadata['course_context'] = (
+                        course_url_template.format(courseId=course_id))
+                    return doc
 
-        self.indexed_items.extend(
-            set('MiVideo:' + doc.metadata['media_id'] for doc in
-                mivideo_documents))
+                mivideo_documents = list(
+                    map(update_metadata, mivideo_documents))
+
+            # Add indexed items to list
+            self.indexed_items.extend(
+                set('MiVideo:' + doc.metadata['media_id'] for doc in
+                    mivideo_documents))
+        except Exception as ex:
+            self.logMessage(
+                message=f'Error loading MiVideo Media Gallery captions: {ex}',
+                level='INFO')
 
         return mivideo_documents
 
