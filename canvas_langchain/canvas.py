@@ -5,6 +5,8 @@ import os
 import tempfile
 from datetime import date, datetime
 from io import BytesIO
+
+from bs4 import BeautifulSoup, PageElement, ResultSet
 from typing import Any, List, Literal
 
 import pytz
@@ -202,17 +204,12 @@ class CanvasLoader(BaseLoader):
         )]
 
     def _get_html_as_string(self, html) -> str:
-        """Use BeautifulSoup 4 to parse a html string and return a simplified string."""
-        try:
-            # Import the html parser class
-            from bs4 import BeautifulSoup
-        except ImportError as exc:
-            raise ImportError(
-                "Could not import beautifulsoup4 python package. "
-                "Please install it with `pip install beautifulsoup4`."
-            ) from exc
-
-        html_string = BeautifulSoup(html, "lxml").text.strip()
+        bs = BeautifulSoup(html, 'lxml')
+        html_string = bs.text.strip()
+        iframes:ResultSet[PageElement] = bs.find_all('iframe')
+        iframe: PageElement
+        for iframe in iframes:
+            html_string += f"Embedded Media: {iframe.get('src')}"
 
         return html_string
 
@@ -455,12 +452,14 @@ class CanvasLoader(BaseLoader):
 
             page_body_text = self._get_html_as_string(course.syllabus_body)
 
-            if len(page_body_text.strip()) == 0:
+            if len(page_body_text) == 0:
                 return []
 
             return [Document(
-                page_content=page_body_text.strip(),
-                metadata={ "filename": "Course Syllabus", "source": self._get_syllabus_url(), "kind": "syllabus" }
+                page_content=page_body_text,
+                metadata={"filename": "Course Syllabus",
+                          "source": self._get_syllabus_url(),
+                          "kind": "syllabus"}
             )]
         except AttributeError:
             return []
