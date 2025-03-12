@@ -205,13 +205,21 @@ class CanvasLoader(BaseLoader):
 
     def _get_html_as_string(self, html) -> str:
         bs = BeautifulSoup(html, 'lxml')
-        html_string = bs.text.strip()
+
+        doc_text = bs.text.strip()
+
         iframes:ResultSet[PageElement] = bs.find_all('iframe')
         iframe: PageElement
         for iframe in iframes:
-            html_string += f"Embedded Media: {iframe.get('src')}"
+            doc_text += f"Embedded Media: {iframe.get('src')} "
+            mivideo_documents = self.load_mivideo(
+                self.returned_course_id,
+                # Allow overriding user ID in development
+                os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
+                          self.canvas_user_id))
 
-        return html_string
+
+        return doc_text
 
     def _load_text_file(self, file) -> List[Document]:
         file_contents = file.get_contents(binary=False)
@@ -550,7 +558,7 @@ class CanvasLoader(BaseLoader):
 
         return module_documents
 
-    def load_mivideo(self, course_id: int, user_id: int) -> List[Document]:
+    def load_mivideo(self, course_id: int, user_id: int, media_id: str=None) -> List[Document]:
         """
         Load MiVideo media captions from Media Gallery LTI.
 
@@ -586,7 +594,13 @@ class CanvasLoader(BaseLoader):
                     os.getenv('MIVIDEO_CHUNK_SECONDS') or
                     KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT))
 
+            if media_id is None:
             mivideo_documents = caption_loader.load()
+            else:
+                mivideo_documents = caption_loader.fetchMediaCaption({
+                    'id': media_id,
+                    'name': 'FUBAR',
+                })
 
             course_url_template = os.getenv('CANVAS_COURSE_URL_TEMPLATE')
 
@@ -629,6 +643,10 @@ class CanvasLoader(BaseLoader):
         try:
             # Initialize a new Canvas object
             canvas = Canvas(self.api_url, self.api_key)
+
+            # Allow overriding user ID in development
+            self.canvas_user_id = os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
+                                            canvas.get_current_user().id)
 
             course = canvas.get_course(self.course_id, include=[ "syllabus_body" ])
 
