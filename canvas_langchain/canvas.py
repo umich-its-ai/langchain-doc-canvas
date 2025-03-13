@@ -5,13 +5,12 @@ import os
 import tempfile
 from datetime import date, datetime
 from io import BytesIO
-
-from bs4 import BeautifulSoup, PageElement, ResultSet
-from typing import Any, List, Literal
+from urllib.parse import parse_qs, urlparse
 
 import pytz
 from LangChainKaltura import KalturaCaptionLoader
 from LangChainKaltura.MiVideoAPI import MiVideoAPI
+from bs4 import BeautifulSoup, PageElement, ResultSet
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
 from langchain_community.document_loaders import Docx2txtLoader
@@ -21,6 +20,7 @@ from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_community.document_loaders import UnstructuredURLLoader
 from pydantic import BaseModel
 from striprtf.striprtf import rtf_to_text
+from typing import Any, List, Literal
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,8 @@ class CanvasLoader(BaseLoader):
             course_id: Course ID we want to return documents from
             index_external_urls: Whether to try and index ExternalUrls in modules - defauls is false
         """
+        self.canvas = None  # TODO: Initialize
+        self.canvas_user_id = None  # TODO: Initialize
         self.api_url = api_url
         self.api_key = api_key
         self.course_id = course_id
@@ -203,6 +205,26 @@ class CanvasLoader(BaseLoader):
             metadata={ "filename": assignment.name, "source": assignment.html_url, "kind": "assignment", "assignment_id": assignment.id }
         )]
 
+    def _get_uuid_canvas_iframe_url(self, url) -> str | None:
+        """
+        Get the resource link UUID from a Canvas iframe URL.
+
+        If the URL has a query string with a `resource_link_lookup_uuid`
+        parameter, return its value.  Otherwise, return None.
+
+        :param url: Canvas iframe URL
+        :type url: str
+        :return: UUID from the URL
+        :rtype: str|None
+        """
+        return parse_qs(urlparse(url).query
+                        ).get('resource_link_lookup_uuid',
+                              [None]).pop()
+
+    def _get_embed_url_canvas_uuid(self, uuid):
+        pass
+
+
     def _get_html_as_string(self, html) -> str:
         bs = BeautifulSoup(html, 'lxml')
 
@@ -211,13 +233,18 @@ class CanvasLoader(BaseLoader):
         iframes:ResultSet[PageElement] = bs.find_all('iframe')
         iframe: PageElement
         for iframe in iframes:
-            doc_text += f"Embedded Media: {iframe.get('src')} "
-            mivideo_documents = self.load_mivideo(
-                self.returned_course_id,
-                # Allow overriding user ID in development
-                os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
-                          self.canvas_user_id))
+            iframe_src_url = iframe.get('src')
+            doc_text += f"iframe src URL: {iframe_src_url} "
 
+            if (embedded_media_uuid :=
+            self._get_uuid_canvas_iframe_url(iframe_src_url)):
+                doc_text += f"UUID: {embedded_media_uuid} "
+                # mivideo_embed_url = self._get_embed_url_canvas_uuid(
+                #     embedded_media_uuid)
+
+            # mivideo_documents = self.load_mivideo(
+            #     self.returned_course_id,
+            #     self.canvas_user_id)
 
         return doc_text
 
@@ -643,6 +670,7 @@ class CanvasLoader(BaseLoader):
         try:
             # Initialize a new Canvas object
             canvas = Canvas(self.api_url, self.api_key)
+            self.canvas = canvas
 
             # Allow overriding user ID in development
             self.canvas_user_id = os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
