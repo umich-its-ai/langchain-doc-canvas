@@ -127,7 +127,7 @@ class CanvasLoader(BaseLoader):
                 return []
 
             if page.body:
-                page_body_text = self._get_html_as_string(page.body)
+                page_body_text = self._get_text_and_embed_urls(page.body)
 
                 return [Document(
                     page_content=page_body_text.strip(),
@@ -154,7 +154,7 @@ class CanvasLoader(BaseLoader):
             )
 
             for announcement in announcements:
-                page_body_text = self._get_html_as_string(announcement.message)
+                page_body_text = self._get_text_and_embed_urls(announcement.message)
 
                 announcement_documents.append(Document(
                     page_content=page_body_text,
@@ -195,7 +195,7 @@ class CanvasLoader(BaseLoader):
             assignment_description = f"This assignment is part of the module {module.name}, which is locked until {formatted_datetime}."
         else:
             if assignment.description:
-                assignment_description = self._get_html_as_string(assignment.description)
+                assignment_description = self._get_text_and_embed_urls(assignment.description)
                 assignment_description = f"Assignment Description: {assignment_description}\n\n"
             else:
                 assignment_description = ""
@@ -226,8 +226,20 @@ class CanvasLoader(BaseLoader):
     def _get_embed_url_canvas_uuid(self, uuid):
         pass
 
+    def _get_text_and_embed_urls(self, html) -> (str, List[str]):
+        """
+        Extracts text and embedded URLs from HTML content.
 
-    def _get_html_as_string(self, html) -> str:
+        This function uses BeautifulSoup to parse the provided HTML content,
+        extracts the text, and identifies any embedded URLs within iframe elements.
+        It returns the extracted text and a list of embedded URLs.
+
+        :param html: The HTML content to parse.
+        :type html: str
+        :return: A tuple containing the extracted text and a list of embedded URLs.
+        :rtype: tuple(str, List[str])
+        """
+
         bs = BeautifulSoup(html, 'lxml')
 
         doc_text = bs.text.strip()
@@ -262,7 +274,7 @@ class CanvasLoader(BaseLoader):
         file_contents = file.get_contents(binary=False)
 
         return [Document(
-            page_content=self._get_html_as_string(file_contents),
+            page_content=self._get_text_and_embed_urls(file_contents),
             metadata={ "filename": file.filename, "source": file.url, "kind": "file", "file_id": file.id }
         )]
 
@@ -487,7 +499,7 @@ class CanvasLoader(BaseLoader):
             if not syllabus_body:
                 return []
 
-            page_body_text = self._get_html_as_string(course.syllabus_body)
+            page_body_text = self._get_text_and_embed_urls(course.syllabus_body)
 
             if len(page_body_text) == 0:
                 return []
