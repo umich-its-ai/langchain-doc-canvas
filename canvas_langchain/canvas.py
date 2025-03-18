@@ -272,7 +272,9 @@ class CanvasLoader(BaseLoader):
 
         doc_text = bs.text.strip()
 
-        iframes:ResultSet[PageElement] = bs.find_all('iframe')
+        embed_urls = []
+
+        iframes: ResultSet[PageElement] = bs.find_all('iframe')
         iframe: PageElement
         for iframe in iframes:
             iframe_src_url = iframe.get('src')
@@ -667,7 +669,7 @@ class CanvasLoader(BaseLoader):
                     KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT))
 
             if media_id is None:
-            mivideo_documents = caption_loader.load()
+                mivideo_documents = caption_loader.load()
             else:
                 mivideo_documents = caption_loader.fetchMediaCaption({
                     'id': media_id,
