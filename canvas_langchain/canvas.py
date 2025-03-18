@@ -223,8 +223,36 @@ class CanvasLoader(BaseLoader):
                         ).get('resource_link_lookup_uuid',
                               [None]).pop()
 
-    def _get_embed_url_canvas_uuid(self, uuid):
-        pass
+    def _get_embed_url_canvas_uuid(self, uuid: str) -> str | None:
+        endpoint = (f'courses/{self.course_id}/lti_resource_links/'
+                    f'lookup_uuid:{uuid}')
+
+        response = self.canvas._Canvas__requester.request('GET', endpoint)
+
+        return response.json().get('url')
+
+    def _get_mivideo_media_id_url(self, url: str) -> str | None:
+        """
+        Get the media ID from a MiVideo URL.
+
+        If the URL has a path with an `entryid` parameter, return its value.
+        Otherwise, return None.
+
+        :param url: MiVideo URL
+        :type url: str
+        :return: Media ID from the URL
+        :rtype: str|None
+        """
+        parsed = urlparse(url)
+
+        if parsed.netloc != 'aakaf.mivideo.it.umich.edu':
+            return None
+
+        path_parts = parsed.path.split('/')
+        try:
+            return path_parts[path_parts.index('entryid') + 1]
+        except ValueError:
+            return None
 
     def _get_text_and_embed_urls(self, html) -> (str, List[str]):
         """
@@ -248,19 +276,22 @@ class CanvasLoader(BaseLoader):
         iframe: PageElement
         for iframe in iframes:
             iframe_src_url = iframe.get('src')
-            doc_text += f"iframe src URL: {iframe_src_url} "
 
             if (embedded_media_uuid :=
             self._get_uuid_canvas_iframe_url(iframe_src_url)):
-                doc_text += f"UUID: {embedded_media_uuid} "
-                # mivideo_embed_url = self._get_embed_url_canvas_uuid(
-                #     embedded_media_uuid)
+
+                embed_urls.append(self._get_embed_url_canvas_uuid(
+                    embedded_media_uuid))
+
+                # mivideo_media_id = self._get_mivideo_media_id_url(
+                #     mivideo_embed_url)
+                # doc_text += f"MiVideo media ID: {mivideo_media_id} "
 
             # mivideo_documents = self.load_mivideo(
             #     self.returned_course_id,
             #     self.canvas_user_id)
 
-        return doc_text
+        return (doc_text, embed_urls)
 
     def _load_text_file(self, file) -> List[Document]:
         file_contents = file.get_contents(binary=False)
