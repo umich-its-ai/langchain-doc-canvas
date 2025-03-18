@@ -11,6 +11,8 @@ import pytz
 from LangChainKaltura import KalturaCaptionLoader
 from LangChainKaltura.MiVideoAPI import MiVideoAPI
 from bs4 import BeautifulSoup, PageElement, ResultSet
+from canvasapi import Canvas
+from canvasapi.exceptions import CanvasException
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
 from langchain_community.document_loaders import Docx2txtLoader
@@ -656,16 +658,6 @@ class CanvasLoader(BaseLoader):
         """Load documents."""
 
         docs = []
-
-        try:
-            # Import the Canvas class
-            from canvasapi import Canvas
-            from canvasapi.exceptions import CanvasException
-        except ImportError as exc:
-            raise ImportError(
-                "Could not import canvasapi python package."
-                "Please install it with `pip install canvasapi`."
-            ) from exc
 
         try:
             # Initialize a new Canvas object
