@@ -716,9 +716,9 @@ class CanvasLoader(BaseLoader):
             # Checking to see which tools are available?
             tabs = course.get_tabs()
 
-            available_tabs = []
-            # Canvas Tab labels are the names shown in the UI
-            # Useful because LTIs all have IDs like 'external_tool'
+            available_tabs = [t.id for t in tabs]
+            # Canvas tab labels are the names shown in the UI, which are
+            # useful because LTI tabs all have IDs like 'external_tool'.
             available_tabs_labels = [t.label for t in tabs]
 
             # Load MiVideo media captions from Media Gallery LTI
@@ -728,16 +728,11 @@ class CanvasLoader(BaseLoader):
                     'DEBUG')
                 mivideo_documents = self.load_mivideo(
                     self.returned_course_id,
-                    # Allow overriding user ID in development
-                    os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
-                              canvas.get_current_user().id))
+                    self.canvas_user_id)
                 docs.extend(mivideo_documents)
                 self.logMessage(
                     f'Loaded MiVideo Media Gallery captions: {len(mivideo_documents)}',
                     'DEBUG')
-
-            for tab in tabs:
-                available_tabs.append(tab.id)
 
             # Load modules
             if "modules" in available_tabs:
