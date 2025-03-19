@@ -285,14 +285,6 @@ class CanvasLoader(BaseLoader):
                 embed_urls.append(self._get_embed_url_canvas_uuid(
                     embedded_media_uuid))
 
-                # mivideo_media_id = self._get_mivideo_media_id_url(
-                #     mivideo_embed_url)
-                # doc_text += f"MiVideo media ID: {mivideo_media_id} "
-
-            # mivideo_documents = self.load_mivideo(
-            #     self.returned_course_id,
-            #     self.canvas_user_id)
-
         return (doc_text, embed_urls)
 
     def _load_text_file(self, file) -> List[Document]:
@@ -526,27 +518,34 @@ class CanvasLoader(BaseLoader):
         return url_docs
 
     def load_syllabus(self, course) -> List[Document]:
+        syllabus_docs = []
+
         try:
-            syllabus_body = course.syllabus_body
-
-            if not syllabus_body:
+            if not course.syllabus_body:
                 return []
 
-            page_body_text = self._get_text_and_embed_urls(course.syllabus_body)
+            (syllabus_body_text, embed_urls) = self._get_text_and_embed_urls(
+                course.syllabus_body)
 
-            if len(page_body_text) == 0:
-                return []
+            if syllabus_body_text:
+                syllabus_docs.append(Document(
+                    page_content=syllabus_body_text,
+                    metadata={"filename": "Course Syllabus",
+                              "source": self._get_syllabus_url(),
+                              "kind": "syllabus"}
+                ))
 
-            return [Document(
-                page_content=page_body_text,
-                metadata={"filename": "Course Syllabus",
-                          "source": self._get_syllabus_url(),
-                          "kind": "syllabus"}
-            )]
+            for url in embed_urls:
+                if (mivideo_media_id :=
+                self._get_mivideo_media_id_url(url)):
+                    syllabus_docs.extend(self.load_mivideo(
+                        self.returned_course_id,
+                        self.canvas_user_id,
+                        media_id=mivideo_media_id))
         except AttributeError:
             return []
 
-        return []
+        return syllabus_docs
 
     def load_modules(self, course) -> List[Document]:
         """Loads all modules from a canvas course."""
