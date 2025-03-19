@@ -12,7 +12,7 @@ from LangChainKaltura import KalturaCaptionLoader
 from LangChainKaltura.MiVideoAPI import MiVideoAPI
 from bs4 import BeautifulSoup, PageElement, ResultSet
 from canvasapi import Canvas
-from canvasapi.exceptions import CanvasException
+from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
 from langchain_community.document_loaders import Docx2txtLoader
@@ -81,8 +81,6 @@ class CanvasLoader(BaseLoader):
 
     def load_pages(self, course) -> List[Document]:
         """Loads all published pages from a canvas course."""
-        from canvasapi.exceptions import CanvasException
-
         page_documents = []
 
         try:
@@ -142,8 +140,6 @@ class CanvasLoader(BaseLoader):
 
     def load_announcements(self, canvas, course) -> List[Document]:
         """Loads all announcements from a canvas course."""
-        from canvasapi.exceptions import CanvasException
-
         announcement_documents = []
 
         try:
@@ -167,8 +163,6 @@ class CanvasLoader(BaseLoader):
 
     def load_assignments(self, course) -> List[Document]:
         """Loads all assignments from a canvas course."""
-        from canvasapi.exceptions import CanvasException
-
         assignment_documents = []
 
         try:
@@ -434,8 +428,6 @@ class CanvasLoader(BaseLoader):
 
     def load_files(self, course) -> List[Document]:
         """Loads all files from a canvas course."""
-        from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
-
         file_documents = []
 
         try:
@@ -549,8 +541,6 @@ class CanvasLoader(BaseLoader):
 
     def load_modules(self, course) -> List[Document]:
         """Loads all modules from a canvas course."""
-        from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
-
         module_documents = []
 
         try:
