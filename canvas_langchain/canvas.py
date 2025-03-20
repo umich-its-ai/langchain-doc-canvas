@@ -71,13 +71,16 @@ class CanvasLoader(BaseLoader):
         self.progress = []
 
     def _get_syllabus_url(self) -> str:
-        return f"{self.api_url}/courses/{self.returned_course_id}/assignments/syllabus"
+        return urljoin(self.api_url,
+                       f'/courses/{self.returned_course_id}/assignments/syllabus')
 
     def _get_page_url(self, page_url) -> str:
-        return f"{self.api_url}/courses/{self.returned_course_id}/pages/{page_url}"
+        return urljoin(self.api_url,
+                       f'/courses/{self.returned_course_id}/pages/{page_url}')
 
     def _get_file_url(self, file_id) -> str:
-        return f"{self.api_url}/courses/{self.returned_course_id}/files/{file_id}"
+        return urljoin(self.api_url,
+                       f'/courses/{self.returned_course_id}/files/{file_id}')
 
     def load_pages(self, course) -> List[Document]:
         """Loads all published pages from a canvas course."""
