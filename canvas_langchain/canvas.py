@@ -5,7 +5,7 @@ import os
 import tempfile
 from datetime import date, datetime
 from io import BytesIO
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, urljoin
 
 import pytz
 from LangChainKaltura import KalturaCaptionLoader
@@ -22,7 +22,7 @@ from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_community.document_loaders import UnstructuredURLLoader
 from pydantic import BaseModel
 from striprtf.striprtf import rtf_to_text
-from typing import Any, List, Literal
+from typing import Any, List, Literal, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +84,8 @@ class CanvasLoader(BaseLoader):
 
     def load_pages(self, course) -> List[Document]:
         """Loads all published pages from a canvas course."""
+        self.logMessage(message='Load pages', level='DEBUG')
+
         page_documents = []
 
         try:
@@ -121,22 +123,29 @@ class CanvasLoader(BaseLoader):
 
     def load_page(self, page) -> List[Document]:
         """Load a specific page."""
+        page_docs = []
+
         try:
-            if page.locked_for_user == True:
+            if page.locked_for_user:
                 # Page is locked
                 self.logMessage(message=f"Page ({page.title}) locked - cannot index", level="DEBUG")
                 return []
 
             if page.body:
-                page_body_text = self._get_text_and_embed_urls(page.body)
+                (page_body_text, embed_urls) = self._get_text_and_embed_urls(
+                    page.body)
+                page_url = self._get_page_url(page.url)
 
-                return [Document(
-                    page_content=page_body_text.strip(),
-                    metadata={ "filename": page.title, "source": self._get_page_url(page.url), "kind": "page", "page_id": page.page_id }
-                )]
-            else:
-                # Page with no content - None
-                return []
+                page_docs.append(Document(
+                    page_content=page_body_text,
+                    metadata={"filename": page.title, "source": page_url,
+                              "kind": "page", "page_id": page.page_id}
+                ))
+
+                page_docs.extend(self.load_media_embeds(
+                    embed_urls, metadata={'course_context': page_url}))
+
+            return page_docs
         except AttributeError as error:
             self._error_logger(error=error, action="load_page", entity_type="page", entity_id=page.page_id)
             return []
@@ -256,12 +265,13 @@ class CanvasLoader(BaseLoader):
         Extracts text and embedded URLs from HTML content.
 
         This function uses BeautifulSoup to parse the provided HTML content,
-        extracts the text, and identifies any embedded URLs within iframe elements.
-        It returns the extracted text and a list of embedded URLs.
+        extracts the text, and identifies any embedded URLs within iframe
+        elements.  It returns the extracted text and a list of embedded URLs.
 
         :param html: The HTML content to parse.
         :type html: str
-        :return: A tuple containing the extracted text and a list of embedded URLs.
+        :return: A tuple containing the extracted text (`strip()`'d) and a list
+          of embedded URLs.
         :rtype: tuple(str, List[str])
         """
 
@@ -512,7 +522,25 @@ class CanvasLoader(BaseLoader):
 
         return url_docs
 
+    def load_media_embeds(self, urls: List[str],
+                          metadata: Dict[str, Any] = {}) -> List[Document]:
+        docs = []
+
+        for url in urls:
+            if (mivideo_media_id := self._get_mivideo_media_id_url(url)):
+                docs.extend(self.load_mivideo(
+                    self.returned_course_id,
+                    self.canvas_user_id,
+                    media_id=mivideo_media_id))
+
+        for doc in docs:
+            doc.metadata.update(metadata)
+
+        return docs
+
     def load_syllabus(self, course) -> List[Document]:
+        self.logMessage(message='Load syllabus', level='DEBUG')
+
         syllabus_docs = []
 
         try:
@@ -521,22 +549,18 @@ class CanvasLoader(BaseLoader):
 
             (syllabus_body_text, embed_urls) = self._get_text_and_embed_urls(
                 course.syllabus_body)
+            syllabus_url = self._get_syllabus_url()
 
             if syllabus_body_text:
                 syllabus_docs.append(Document(
                     page_content=syllabus_body_text,
                     metadata={"filename": "Course Syllabus",
-                              "source": self._get_syllabus_url(),
+                              "source": syllabus_url,
                               "kind": "syllabus"}
                 ))
 
-            for url in embed_urls:
-                if (mivideo_media_id :=
-                self._get_mivideo_media_id_url(url)):
-                    syllabus_docs.extend(self.load_mivideo(
-                        self.returned_course_id,
-                        self.canvas_user_id,
-                        media_id=mivideo_media_id))
+            syllabus_docs.extend(self.load_media_embeds(
+                embed_urls, metadata={'course_context': syllabus_url}))
         except AttributeError:
             return []
 
@@ -544,6 +568,8 @@ class CanvasLoader(BaseLoader):
 
     def load_modules(self, course) -> List[Document]:
         """Loads all modules from a canvas course."""
+        self.logMessage(message='Load modules', level='DEBUG')
+
         module_documents = []
 
         try:
@@ -713,8 +739,7 @@ class CanvasLoader(BaseLoader):
             self.returned_course_id = course.id
 
             # add syllabus
-            self.logMessage(message="Load syllabus", level="DEBUG")
-            docs = docs + self.load_syllabus(course=course)
+            docs.extend(self.load_syllabus(course=course))
 
             # Checking to see which tools are available?
             tabs = course.get_tabs()
