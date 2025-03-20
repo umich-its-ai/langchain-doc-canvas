@@ -527,11 +527,29 @@ class CanvasLoader(BaseLoader):
         docs = []
 
         for url in urls:
+            self.logMessage(
+                f'Checking Embed URL "{url}"…',
+                level='DEBUG')
+
             if (mivideo_media_id := self._get_mivideo_media_id_url(url)):
                 docs.extend(self.load_mivideo(
                     self.returned_course_id,
                     self.canvas_user_id,
                     media_id=mivideo_media_id))
+                continue
+
+            self.logMessage(
+                f'Embed URL "{url}" is NOT for MiVideo',
+                level='DEBUG')
+
+            # TODO: Add YouTube support
+            # For example…
+            # if (youtube_media_id := self._get_youtube_media_id_url(url)):
+            #     docs.extend(self.load_youtube(
+            #         self.returned_course_id,
+            #         self.canvas_user_id,
+            #         media_id=youtube_media_id))
+            #     continue
 
         for doc in docs:
             doc.metadata.update(metadata)
@@ -764,16 +782,10 @@ class CanvasLoader(BaseLoader):
 
             # Load modules
             if "modules" in available_tabs:
-                self.logMessage(message="Load modules", level="DEBUG")
-                module_documents = self.load_modules(course=course)
-                docs = docs + module_documents
+                docs.extend(self.load_modules(course=course))
 
             # Load pages
             if "pages" in available_tabs:
-                self.logMessage(message="Load pages", level="DEBUG")
-                page_documents = self.load_pages(course=course)
-                docs = docs + page_documents
-
             # Load announcements
             if "announcements" in available_tabs:
                 self.logMessage(message="Load announcements", level="DEBUG")
@@ -791,6 +803,8 @@ class CanvasLoader(BaseLoader):
                 self.logMessage(message="Load files", level="DEBUG")
                 file_documents = self.load_files(course=course)
                 docs = docs + file_documents
+                docs.extend(self.load_pages(course=course))
+
 
             # Replace null character with space
             for doc in docs:
