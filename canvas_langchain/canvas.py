@@ -659,7 +659,7 @@ class CanvasLoader(BaseLoader):
                             # Don't try indexing external URL
                             continue
 
-                        self.logMessage(message=f"Indexing file {repr(module_item.title)} ({module_item.external_url})", level="DEBUG")
+                        self.logMessage(message=f"Indexing URL {repr(module_item.title)} ({module_item.external_url})", level="DEBUG")
 
                         if f"ExternalUrl:{module_item.external_url}" not in self.indexed_items:
                             try:
