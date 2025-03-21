@@ -230,12 +230,19 @@ class CanvasLoader(BaseLoader):
                               [None]).pop()
 
     def _get_embed_url_canvas_uuid(self, uuid: str) -> str | None:
+        url = None
         endpoint = (f'courses/{self.course_id}/lti_resource_links/'
                     f'lookup_uuid:{uuid}')
 
-        response = self.canvas._Canvas__requester.request('GET', endpoint)
+        try:
+            response = self.canvas._Canvas__requester.request('GET', endpoint)
 
-        return response.json().get('url')
+            url = response.json().get('url')
+        except CanvasException as error:
+            self.logMessage( 'Error getting embed URL for UUID '
+                             f'"{uuid}": {error}', level='WARNING')
+
+        return url
 
     def _get_mivideo_media_id_url(self, url: str) -> str | None:
         """
@@ -287,12 +294,12 @@ class CanvasLoader(BaseLoader):
             iframe_src_url = iframe.get('src')
 
             if (embedded_media_uuid :=
-            self._get_uuid_canvas_iframe_url(iframe_src_url)):
+            self._get_uuid_canvas_iframe_url(iframe_src_url)) and (
+            embed_url := self._get_embed_url_canvas_uuid(
+                embedded_media_uuid)):
+                embed_urls.append(embed_url)
 
-                embed_urls.append(self._get_embed_url_canvas_uuid(
-                    embedded_media_uuid))
-
-        return (doc_text, embed_urls)
+        return doc_text, embed_urls
 
     def _load_text_file(self, file) -> List[Document]:
         file_contents = file.get_contents(binary=False)
@@ -528,7 +535,7 @@ class CanvasLoader(BaseLoader):
 
         for url in urls:
             self.logMessage(
-                f'Checking Embed URL "{url}"…',
+                f'Checking embed URL "{url}"…',
                 level='DEBUG')
 
             if (mivideo_media_id := self._get_mivideo_media_id_url(url)):
