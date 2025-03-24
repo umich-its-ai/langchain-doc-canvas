@@ -56,13 +56,20 @@ class CanvasLoader(BaseLoader):
             course_id: Course ID we want to return documents from
             index_external_urls: Whether to try and index ExternalUrls in modules - defauls is false
         """
-        self.canvas = None  # TODO: Initialize
-        self.canvas_user_id = None  # TODO: Initialize
         self.api_url = api_url
         self.api_key = api_key
         self.course_id = course_id
-        self.returned_course_id = 0
         self.index_external_urls = index_external_urls
+
+        self.canvas = Canvas(api_url, api_key)
+
+        # Allow overriding user ID in development
+        self.canvas_user_id = os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
+                                        self.canvas.get_current_user().id)
+
+        self.course = self.canvas.get_course(self.course_id,
+                                             include=['syllabus_body'])
+        self.returned_course_id = self.course.id
 
         self.invalid_files = []
         self.indexed_items = []
@@ -82,14 +89,14 @@ class CanvasLoader(BaseLoader):
         return urljoin(self.api_url,
                        f'/courses/{self.returned_course_id}/files/{file_id}')
 
-    def load_pages(self, course) -> List[Document]:
+    def load_pages(self) -> List[Document]:
         """Loads all published pages from a canvas course."""
         self.logMessage(message='Load pages', level='DEBUG')
 
         page_documents = []
 
         try:
-            pages = course.get_pages(
+            pages = self.course.get_pages(
                 published=True,
                 include=[ "body" ]
             )
@@ -150,13 +157,14 @@ class CanvasLoader(BaseLoader):
             self._error_logger(error=error, action="load_page", entity_type="page", entity_id=page.page_id)
             return []
 
-    def load_announcements(self, canvas, course) -> List[Document]:
+    def load_announcements(self) -> List[Document]:
         """Loads all announcements from a canvas course."""
+        self.logMessage(message="Load announcements", level="DEBUG")
         announcement_documents = []
 
         try:
-            announcements = canvas.get_announcements(
-                context_codes=[ course ],
+            announcements = self.canvas.get_announcements(
+                context_codes=[self.course],
                 start_date="2016-01-01",
                 end_date=date.today().isoformat(),
             )
@@ -173,12 +181,14 @@ class CanvasLoader(BaseLoader):
 
         return announcement_documents
 
-    def load_assignments(self, course) -> List[Document]:
+    def load_assignments(self) -> List[Document]:
         """Loads all assignments from a canvas course."""
+        self.logMessage(message="Load assignments", level="DEBUG")
+
         assignment_documents = []
 
         try:
-            assignments = course.get_assignments()
+            assignments = self.course.get_assignments()
 
             for assignment in assignments:
                 if f"Assignment:{assignment.id}" not in self.indexed_items:
@@ -447,13 +457,13 @@ class CanvasLoader(BaseLoader):
         else:
             self.logMessage(message = { "message": error.message[0]["message"], "action": action, "entity_type": entity_type, "entity_id": entity_id }, level = 'WARNING')
 
-    def load_files(self, course) -> List[Document]:
+    def load_files(self) -> List[Document]:
         """Loads all files from a Canvas course."""
         self.logMessage(message='Load files', level='DEBUG')
         file_documents = []
 
         try:
-            files = course.get_files()
+            files = self.course.get_files()
 
             for file in files:
                 try:
@@ -465,7 +475,9 @@ class CanvasLoader(BaseLoader):
                     file_content_type = getattr(file, "content-type")
                     self.invalid_files.append(f"{file.filename} ({file_content_type})")
         except CanvasException as error:
-            self._error_logger(error=error, action="get_files", entity_type="course", entity_id=course.id)
+            self._error_logger(error=error, action="get_files",
+                               entity_type="course",
+                               entity_id=self.returned_course_id)
 
         return file_documents
 
@@ -541,10 +553,7 @@ class CanvasLoader(BaseLoader):
                 level='DEBUG')
 
             if (mivideo_media_id := self._get_mivideo_media_id_url(url)):
-                docs.extend(self.load_mivideo(
-                    self.returned_course_id,
-                    self.canvas_user_id,
-                    media_id=mivideo_media_id))
+                docs.extend(self.load_mivideo(media_id=mivideo_media_id))
                 continue
 
             self.logMessage(
@@ -565,17 +574,17 @@ class CanvasLoader(BaseLoader):
 
         return docs
 
-    def load_syllabus(self, course) -> List[Document]:
+    def load_syllabus(self) -> List[Document]:
         self.logMessage(message='Load syllabus', level='DEBUG')
 
         syllabus_docs = []
 
         try:
-            if not course.syllabus_body:
+            if not self.course.syllabus_body:
                 return []
 
             (syllabus_body_text, embed_urls) = self._get_text_and_embed_urls(
-                course.syllabus_body)
+                self.course.syllabus_body)
             syllabus_url = self._get_syllabus_url()
 
             if syllabus_body_text:
@@ -593,11 +602,13 @@ class CanvasLoader(BaseLoader):
 
         return syllabus_docs
 
-    def load_modules(self, course) -> List[Document]:
+    def load_modules(self) -> List[Document]:
         """Loads all modules from a canvas course."""
         self.logMessage(message='Load modules', level='DEBUG')
 
         module_documents = []
+
+        course = self.course
 
         try:
             modules = course.get_modules()
@@ -678,7 +689,7 @@ class CanvasLoader(BaseLoader):
 
         return module_documents
 
-    def load_mivideo(self, course_id: int, user_id: int, media_id: str=None) -> List[Document]:
+    def load_mivideo(self, media_id: str = None) -> List[Document]:
         """
         Load MiVideo media captions from Media Gallery LTI.
 
@@ -689,6 +700,9 @@ class CanvasLoader(BaseLoader):
         :return: List of LangChain Document objects containing media captions
         :rtype: List[Document]
         """
+
+        course_id = self.returned_course_id
+        user_id = self.canvas_user_id
 
         mivideo_documents = []
 
@@ -751,24 +765,14 @@ class CanvasLoader(BaseLoader):
         docs = []
 
         try:
-            # Initialize a new Canvas object
-            canvas = Canvas(self.api_url, self.api_key)
-            self.canvas = canvas
-
-            # Allow overriding user ID in development
-            self.canvas_user_id = os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
-                                            canvas.get_current_user().id)
-
-            course = canvas.get_course(self.course_id, include=[ "syllabus_body" ])
+            course = self.course
 
             # Access the course's name
             self.logMessage(message=f"Indexing: {course.name} ({course.id})", level="INFO")
 
-            self.returned_course_id = course.id
-
             # Index syllabus explicitly, even if it is not in the tabs
             # or linked from other resources.
-            docs.extend(self.load_syllabus(course=course))
+            docs.extend(self.load_syllabus())
 
             # Course navigation tabs identify which tools are available.
             # Tabs for LTIs have IDs like `context_external_tool_nnnnn`,
@@ -778,47 +782,38 @@ class CanvasLoader(BaseLoader):
                        tab.label if tab.id.startswith('context_external_tool_')
                        else tab.id)
             available_tabs = list(map(tab_map, course.get_tabs()))
-            print(available_tabs)
-
 
             # Load MiVideo media captions from Media Gallery LTI
             if 'Media Gallery' in available_tabs:
                 self.logMessage(
                     'Loading MiVideo Media Gallery captions',
                     'DEBUG')
-                mivideo_documents = self.load_mivideo(
-                    self.returned_course_id,
-                    self.canvas_user_id)
+                mivideo_documents = self.load_mivideo()
                 docs.extend(mivideo_documents)
                 self.logMessage(
-                    f'Loaded MiVideo Media Gallery captions: {len(mivideo_documents)}',
+                    f'Loaded MiVideo Media Gallery captions: '
+                    f'{len(mivideo_documents)}',
                     'DEBUG')
 
             # Load modules
             if "modules" in available_tabs:
-                docs.extend(self.load_modules(course=course))
+                docs.extend(self.load_modules())
 
             # Load pages
             if "pages" in available_tabs:
+                docs.extend(self.load_pages())
+
             # Load announcements
             if "announcements" in available_tabs:
-                self.logMessage(message="Load announcements", level="DEBUG")
-                announcement_documents = self.load_announcements(canvas=canvas, course=course)
-                docs = docs + announcement_documents
+                docs.extend(self.load_announcements())
 
             # Load assignments
             if "assignments" in available_tabs:
-                self.logMessage(message="Load assignments", level="DEBUG")
-                assignment_documents = self.load_assignments(course=course)
-                docs = docs + assignment_documents
+                docs.extend(self.load_assignments())
 
             # Load files
             if "files" in available_tabs:
-                self.logMessage(message="Load files", level="DEBUG")
-                file_documents = self.load_files(course=course)
-                docs = docs + file_documents
-                docs.extend(self.load_pages(course=course))
-
+                docs.extend(self.load_files())
 
             # Replace null character with space
             for doc in docs:
