@@ -162,7 +162,7 @@ class CanvasLoader(BaseLoader):
             )
 
             for announcement in announcements:
-                page_body_text = self._get_text_and_embed_urls(announcement.message)
+                (page_body_text, embed_urls) = self._get_text_and_embed_urls(announcement.message)
 
                 announcement_documents.append(Document(
                     page_content=page_body_text,
@@ -201,7 +201,7 @@ class CanvasLoader(BaseLoader):
             assignment_description = f"This assignment is part of the module {module.name}, which is locked until {formatted_datetime}."
         else:
             if assignment.description:
-                assignment_description = self._get_text_and_embed_urls(assignment.description)
+                (assignment_description, embed_urls) = self._get_text_and_embed_urls(assignment.description)
                 assignment_description = f"Assignment Description: {assignment_description}\n\n"
             else:
                 assignment_description = ""
@@ -311,9 +311,10 @@ class CanvasLoader(BaseLoader):
 
     def _load_html_file(self, file) -> List[Document]:
         file_contents = file.get_contents(binary=False)
+        (file_text, embed_urls) = self._get_text_and_embed_urls(file_contents)
 
         return [Document(
-            page_content=self._get_text_and_embed_urls(file_contents),
+            page_content=file_text,
             metadata={ "filename": file.filename, "source": file.url, "kind": "file", "file_id": file.id }
         )]
 
@@ -447,7 +448,8 @@ class CanvasLoader(BaseLoader):
             self.logMessage(message = { "message": error.message[0]["message"], "action": action, "entity_type": entity_type, "entity_id": entity_id }, level = 'WARNING')
 
     def load_files(self, course) -> List[Document]:
-        """Loads all files from a canvas course."""
+        """Loads all files from a Canvas course."""
+        self.logMessage(message='Load files', level='DEBUG')
         file_documents = []
 
         try:
@@ -492,7 +494,7 @@ class CanvasLoader(BaseLoader):
         ]
 
         if file_content_type in allowed_content_types:
-            self.logMessage(message=f"Processing file: {repr(file.filename)} ({file.mime_class})", level="DEBUG")
+            self.logMessage(message=f"Processing file: {repr(file.filename)} ({file.mime_class}: {file_content_type})", level="DEBUG")
 
             if file_content_type == "text/plain":
                 file_documents = file_documents + self._load_text_file(file)
@@ -632,6 +634,7 @@ class CanvasLoader(BaseLoader):
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_page", entity_type="page", entity_id=module_item.page_url)
                     elif module_item.type == "Assignment":
+                        # if the assignment is locked, index it with a message that it is locked
                         self.logMessage(message=f"Indexing assignment {module_item.title} ({module_item.content_id})", level="DEBUG")
                         if f"Assignment:{module_item.content_id}" not in self.indexed_items:
                             try:
@@ -763,7 +766,8 @@ class CanvasLoader(BaseLoader):
 
             self.returned_course_id = course.id
 
-            # add syllabus
+            # Index syllabus explicitly, even if it is not in the tabs
+            # or linked from other resources.
             docs.extend(self.load_syllabus(course=course))
 
             # Checking to see which tools are available?
