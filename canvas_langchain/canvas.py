@@ -770,16 +770,19 @@ class CanvasLoader(BaseLoader):
             # or linked from other resources.
             docs.extend(self.load_syllabus(course=course))
 
-            # Checking to see which tools are available?
-            tabs = course.get_tabs()
+            # Course navigation tabs identify which tools are available.
+            # Tabs for LTIs have IDs like `context_external_tool_nnnnn`,
+            # which are not recognizable and may change.  The labels of
+            # those tabs will identify which LTIs are available.
+            tab_map = (lambda tab:
+                       tab.label if tab.id.startswith('context_external_tool_')
+                       else tab.id)
+            available_tabs = list(map(tab_map, course.get_tabs()))
+            print(available_tabs)
 
-            available_tabs = [t.id for t in tabs]
-            # Canvas tab labels are the names shown in the UI, which are
-            # useful because LTI tabs all have IDs like 'external_tool'.
-            available_tabs_labels = [t.label for t in tabs]
 
             # Load MiVideo media captions from Media Gallery LTI
-            if 'Media Gallery' in available_tabs_labels:
+            if 'Media Gallery' in available_tabs:
                 self.logMessage(
                     'Loading MiVideo Media Gallery captions',
                     'DEBUG')
