@@ -700,6 +700,9 @@ class CanvasLoader(BaseLoader):
         :return: List of LangChain Document objects containing media captions
         :rtype: List[Document]
         """
+        self.logMessage(
+            'Loading MiVideo Media Gallery captions',
+            'DEBUG')
 
         course_id = self.returned_course_id
         user_id = self.canvas_user_id
@@ -757,6 +760,11 @@ class CanvasLoader(BaseLoader):
                 message=f'Error loading MiVideo Media Gallery captions: {ex}',
                 level='INFO')
 
+        self.logMessage(
+            f'Loaded MiVideo Media Gallery captions: '
+            f'{len(mivideo_documents)}',
+            'DEBUG')
+
         return mivideo_documents
 
     def load(self) -> List[Document]:
@@ -785,15 +793,7 @@ class CanvasLoader(BaseLoader):
 
             # Load MiVideo media captions from Media Gallery LTI
             if 'Media Gallery' in available_tabs:
-                self.logMessage(
-                    'Loading MiVideo Media Gallery captions',
-                    'DEBUG')
-                mivideo_documents = self.load_mivideo()
-                docs.extend(mivideo_documents)
-                self.logMessage(
-                    f'Loaded MiVideo Media Gallery captions: '
-                    f'{len(mivideo_documents)}',
-                    'DEBUG')
+                docs.extend(self.load_mivideo())
 
             # Load modules
             if "modules" in available_tabs:
