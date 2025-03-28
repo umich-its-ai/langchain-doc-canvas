@@ -71,6 +71,9 @@ class CanvasLoader(BaseLoader):
                                              include=['syllabus_body'])
         self.returned_course_id = self.course.id
 
+        self.mivideo_api = None
+        self.caption_loader = None
+
         self.invalid_files = []
         self.indexed_items = []
 
@@ -176,6 +179,10 @@ class CanvasLoader(BaseLoader):
                     page_content=page_body_text,
                     metadata={ "filename": announcement.title, "source": announcement.html_url, "kind": "announcement", "announcement_id": announcement.id }
                 ))
+
+                announcement_documents.extend(self.load_media_embeds(
+                    embed_urls,
+                    metadata={'course_context': announcement.html_url}))
         except CanvasException as error:
             self._error_logger(error=error, action="get_announcements", entity_type="announcement", entity_id=announcement.id)
 
@@ -240,7 +247,18 @@ class CanvasLoader(BaseLoader):
                               [None]).pop()
 
     def _get_embed_url_canvas_uuid(self, uuid: str) -> str | None:
+        """
+        Get the embed URL for a Canvas UUID.
+
+        :param uuid: UUID for a Canvas resource
+        :type uuid: str
+        :return: Embed URL for the UUID
+        :rtype: str|None
+        """
+        self.logMessage(f'Getting embed URL for UUID "{uuid}"…', level='DEBUG')
+
         url = None
+
         endpoint = (f'courses/{self.course_id}/lti_resource_links/'
                     f'lookup_uuid:{uuid}')
 
@@ -251,6 +269,10 @@ class CanvasLoader(BaseLoader):
         except CanvasException as error:
             self.logMessage( 'Error getting embed URL for UUID '
                              f'"{uuid}": {error}', level='WARNING')
+
+        if url:
+            self.logMessage(f'Embed URL for UUID "{uuid}": {url}',
+                            level='DEBUG')
 
         return url
 
@@ -689,32 +711,41 @@ class CanvasLoader(BaseLoader):
 
         return module_documents
 
-    def load_mivideo(self, media_id: str = None) -> List[Document]:
+    def _get_mivideo_api(self) -> MiVideoAPI:
         """
-        Load MiVideo media captions from Media Gallery LTI.
+        Get MiVideo API client.  If it has already been created, return it,
+        otherwise create a new one.
 
-        :param course_id: Canvas course ID
-        :type course_id: int
-        :param user_id: Canvas user ID
-        :type user_id: int
-        :return: List of LangChain Document objects containing media captions
-        :rtype: List[Document]
+        :raises: Exception if MiVideo API client cannot be created
+        :return: MiVideo API client
+        :rtype: MiVideoAPI
         """
-        self.logMessage(
-            'Loading MiVideo Media Gallery captions',
-            'DEBUG')
-
-        course_id = self.returned_course_id
-        user_id = self.canvas_user_id
-
-        mivideo_documents = []
+        if self.mivideo_api:
+            return self.mivideo_api
 
         try:
-            api = MiVideoAPI(
-                host=os.getenv('MIVIDEO_API_HOST'),
-                authId=os.getenv('MIVIDEO_API_AUTH_ID'),
-                authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'))
+            api = MiVideoAPI(host=os.getenv('MIVIDEO_API_HOST'),
+                             authId=os.getenv('MIVIDEO_API_AUTH_ID'),
+                             authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'))
+            self.mivideo_api = api
+            return api
+        except Exception as ex:
+            self.logMessage(message=f'Error getting MiVideo API: {ex}',
+                            level='INFO')
 
+    def _get_caption_loader(self) -> KalturaCaptionLoader:
+        """
+        Get KalturaCaptionLoader.  If it has already been created, return it,
+        otherwise create a new one.
+
+        :raises: Exception if KalturaCaptionLoader cannot be created
+        :return: Kaltura caption loader instance
+        :rtype: KalturaCaptionLoader
+        """
+        if self.caption_loader:
+            return self.caption_loader
+
+        try:
             languages = os.getenv('MIVIDEO_LANGUAGE_CODES_CSV')
             if not languages:
                 languages = KalturaCaptionLoader.LANGUAGES_DEFAULT
@@ -722,21 +753,48 @@ class CanvasLoader(BaseLoader):
                 languages = set(languages.split(','))
 
             caption_loader = KalturaCaptionLoader(
-                apiClient=api,
-                courseId=str(int(course_id)),
-                userId=str(int(user_id)),
+                apiClient=self._get_mivideo_api(),
+                courseId=str(int(self.returned_course_id)),
+                userId=str(int(self.canvas_user_id)),
                 languages=languages,
                 urlTemplate=os.getenv('MIVIDEO_SOURCE_URL_TEMPLATE'),
                 chunkSeconds=int(
                     os.getenv('MIVIDEO_CHUNK_SECONDS') or
                     KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT))
 
+            self.caption_loader = caption_loader
+            return caption_loader
+        except Exception as ex:
+            self.logMessage(
+                message=f'Error getting KalturaCaptionLoader: {ex}',
+                level='INFO')
+
+    def load_mivideo(self, media_id: str = None) -> List[Document]:
+        """
+        Load MiVideo media captions from Media Gallery LTI or from a single
+        media caption.
+
+        :param media_id: MiVideo media ID
+        :type media_id: str
+        :return: List of LangChain Document objects containing media captions
+        :rtype: List[Document]
+        """
+        self.logMessage('Loading MiVideo '
+                        'single media' if media_id else 'Media Gallery'
+                                                        ' captions',
+                        'DEBUG')
+
+        mivideo_documents = []
+
+        try:
+            caption_loader = self._get_caption_loader()
+
             if media_id is None:
                 mivideo_documents = caption_loader.load()
             else:
                 mivideo_documents = caption_loader.fetchMediaCaption({
                     'id': media_id,
-                    'name': 'FUBAR',
+                    'name': 'FUBAR',  # TODO: Find a way to get the media name
                 })
 
             course_url_template = os.getenv('CANVAS_COURSE_URL_TEMPLATE')
@@ -745,7 +803,8 @@ class CanvasLoader(BaseLoader):
             if course_url_template:
                 def update_metadata(doc):
                     doc.metadata['course_context'] = (
-                        course_url_template.format(courseId=course_id))
+                        course_url_template.format(
+                            courseId=self.returned_course_id))
                     return doc
 
                 mivideo_documents = list(
