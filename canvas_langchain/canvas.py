@@ -153,7 +153,9 @@ class CanvasLoader(BaseLoader):
                 ))
 
                 page_docs.extend(self.load_media_embeds(
-                    embed_urls, metadata={'course_context': page_url}))
+                    embed_urls, metadata={
+                        'filename': f'"{page.title}" embedded media',
+                        'course_context': page_url}))
 
             return page_docs
         except AttributeError as error:
@@ -182,7 +184,9 @@ class CanvasLoader(BaseLoader):
 
                 announcement_documents.extend(self.load_media_embeds(
                     embed_urls,
-                    metadata={'course_context': announcement.html_url}))
+                    metadata={
+                        'filename': f'"{announcement.title}" embedded media',
+                        'course_context': announcement.html_url}))
         except CanvasException as error:
             self._error_logger(error=error, action="get_announcements", entity_type="announcement", entity_id=announcement.id)
 
@@ -208,6 +212,9 @@ class CanvasLoader(BaseLoader):
 
     def load_assignment(self, assignment, module=None, locked=False, unlock_at_datetime=None) -> List[Document]:
         """Load a specific assignment."""
+        assignment_documents = []
+        embed_urls = []
+
         if locked and unlock_at_datetime:
             friendly_time = unlock_at_datetime
 
@@ -225,10 +232,31 @@ class CanvasLoader(BaseLoader):
 
         assignment_content=f"Assignment Name: {assignment.name} \n\n Assignment Due Date: {assignment.due_at} \n\n Assignment Points Possible: {assignment.points_possible} \n\n{assignment_description}"
 
-        return [Document(
+        assignment_documents.append(
+            Document(
             page_content=assignment_content,
-            metadata={ "filename": assignment.name, "source": assignment.html_url, "kind": "assignment", "assignment_id": assignment.id }
-        )]
+            metadata={ "filename": assignment.name, "source": assignment.html_url, "kind": "assignment", "assignment_id": assignment.id }))
+
+        if embed_urls:
+            assignment_documents.extend(self.load_media_embeds(
+                embed_urls, metadata={
+                    'filename': f'"{assignment.name}" embedded media',
+                    'course_context': assignment.html_url}))
+
+        return assignment_documents
+
+    def _get_embed_url_canvas_url(self, url) -> str | None:
+        parsed_url = urlparse(url)
+
+        # Extra checking to be sure URL is for a Canvas LTI 1.1
+        # embedding, because its `url` parameter could be commonly found
+        # in other URLs.
+        if not (parsed_url.netloc.lower() == 'umich.instructure.com'
+                and parsed_url.path.lower().startswith('/courses/')
+                and parsed_url.path.lower().endswith('/external_tools/retrieve')):
+            return None
+
+        return parse_qs(parsed_url.query).get('url', [None]).pop()
 
     def _get_uuid_canvas_iframe_url(self, url) -> str | None:
         """
@@ -325,11 +353,21 @@ class CanvasLoader(BaseLoader):
         for iframe in iframes:
             iframe_src_url = iframe.get('src')
 
+            # LTI 1.3 embed URLs, protected by UUID
             if (embedded_media_uuid :=
             self._get_uuid_canvas_iframe_url(iframe_src_url)) and (
             embed_url := self._get_embed_url_canvas_uuid(
                 embedded_media_uuid)):
                 embed_urls.append(embed_url)
+
+            # LTI 1.1 embed URLs, link directly to the media
+            elif (embed_url := self._get_embed_url_canvas_url(iframe_src_url)):
+                embed_urls.append(embed_url)
+
+            else:
+                self.logMessage(f'Embed URL "{iframe_src_url}" '
+                                'is NOT for Canvas or does not use UUID',
+                                level='DEBUG')
 
         return doc_text, embed_urls
 
@@ -342,13 +380,21 @@ class CanvasLoader(BaseLoader):
         )]
 
     def _load_html_file(self, file) -> List[Document]:
+        file_documents = []
         file_contents = file.get_contents(binary=False)
         (file_text, embed_urls) = self._get_text_and_embed_urls(file_contents)
 
-        return [Document(
+        file_documents.append(Document(
             page_content=file_text,
             metadata={ "filename": file.filename, "source": file.url, "kind": "file", "file_id": file.id }
-        )]
+        ))
+
+        file_documents.extend(self.load_media_embeds(
+            embed_urls, metadata={
+                'filename': f'"{file.filename}" embedded media',
+                'course_context': file.url}))
+
+        return file_documents
 
     def _load_rtf_file(self, file) -> List[Document]:
         file_contents = file.get_contents(binary=False)
@@ -618,7 +664,9 @@ class CanvasLoader(BaseLoader):
                 ))
 
             syllabus_docs.extend(self.load_media_embeds(
-                embed_urls, metadata={'course_context': syllabus_url}))
+                embed_urls, metadata={
+                    'filename': '"Course Syllabus" embedded media',
+                    'course_context': syllabus_url}))
         except AttributeError:
             return []
 
@@ -792,9 +840,14 @@ class CanvasLoader(BaseLoader):
             if media_id is None:
                 mivideo_documents = caption_loader.load()
             else:
+                if f'MiVideo:{media_id}' in self.indexed_items:
+                    self.logMessage(
+                        f'MiVideo media {media_id} already indexed',
+                        'DEBUG')
+                    return mivideo_documents
                 mivideo_documents = caption_loader.fetchMediaCaption({
                     'id': media_id,
-                    'name': 'FUBAR',  # TODO: Find a way to get the media name
+                    'name': 'unidentified embedded media',
                 })
 
             course_url_template = os.getenv('CANVAS_COURSE_URL_TEMPLATE')
