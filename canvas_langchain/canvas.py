@@ -63,7 +63,7 @@ class CanvasLoader(BaseLoader):
 
         self.canvas = Canvas(api_url, api_key)
 
-        # Allow overriding user ID in development
+        # Allow user ID override for development
         self.canvas_user_id = os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
                                         self.canvas.get_current_user().id)
 
@@ -246,6 +246,14 @@ class CanvasLoader(BaseLoader):
         return assignment_documents
 
     def _get_embed_url_canvas_url(self, url) -> str | None:
+        """
+        Get the embedded resource URL from a Canvas LTI 1.1 embedding URL.
+
+        :param url: Canvas embedding URL
+        :type url: str
+        :return: URL contained in the embed URL
+        :rtype: str | None
+        """
         parsed_url = urlparse(url)
 
         # Extra checking to be sure URL is for a Canvas LTI 1.1
@@ -268,7 +276,7 @@ class CanvasLoader(BaseLoader):
         :param url: Canvas iframe URL
         :type url: str
         :return: UUID from the URL
-        :rtype: str|None
+        :rtype: str | None
         """
         return parse_qs(urlparse(url).query
                         ).get('resource_link_lookup_uuid',
@@ -281,7 +289,7 @@ class CanvasLoader(BaseLoader):
         :param uuid: UUID for a Canvas resource
         :type uuid: str
         :return: Embed URL for the UUID
-        :rtype: str|None
+        :rtype: str | None
         """
         self.logMessage(f'Getting embed URL for UUID "{uuid}"…', level='DEBUG')
 
@@ -314,7 +322,7 @@ class CanvasLoader(BaseLoader):
         :param url: MiVideo URL
         :type url: str
         :return: Media ID from the URL
-        :rtype: str|None
+        :rtype: str | None
         """
         parsed = urlparse(url)
 
