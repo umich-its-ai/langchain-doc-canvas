@@ -620,6 +620,39 @@ class CanvasLoader(BaseLoader):
         try:
             # Import the Canvas class
             from canvasapi import Canvas
+
+            # see: https://github.com/ucfopen/canvasapi/issues/687
+            from canvasapi.file import File
+
+            def patched_download(self, location):
+                """
+                Download the file to specified location.
+
+                :param location: The path to download to.
+                :type location: str
+                """
+                response = self._requester.request("GET", _url=self.url, use_auth=False)
+
+                with open(location, "wb") as file_out:
+                    file_out.write(response.content)
+
+
+            def patched_get_contents(self, binary=False):
+                """
+                Download the contents of this file.
+                Pass binary=True to return a bytes object instead of a str.
+
+                :rtype: str or bytes
+                """
+                response = self._requester.request("GET", _url=self.url, use_auth=False)
+                if binary:
+                    return response.content
+                else:
+                    return response.text
+
+            File.get_contents = patched_get_contents
+            File.download = patched_download
+
             from canvasapi.exceptions import CanvasException
         except ImportError as exc:
             raise ImportError(
