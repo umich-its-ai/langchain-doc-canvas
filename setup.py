@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="canvas_langchain",
-    version="0.9.17",
+    version="0.9.18",
     description="A canvas langchain integration",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -18,7 +18,7 @@ setup(
         "langchain",
         "langchain-community",
         "unstructured[docx,pptx]",
-        "canvasapi",
+        "canvasapi=3.3.0",
         "beautifulsoup4",
         "lxml",
         "PyPDF2[crypto]",

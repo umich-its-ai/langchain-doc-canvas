@@ -1,7 +1,7 @@
 langchain
 langchain-community
 unstructured[docx,pptx,xlsx]
-canvasapi
+canvasapi=3.3.0
 beautifulsoup4
 lxml
 PyPDF2[crypto]
