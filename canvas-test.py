@@ -1,34 +1,52 @@
+import os
+
 from canvas_langchain.canvas import CanvasLoader
 
+try:
+    from dotenv import load_dotenv  # pip install python-dotenv
+
+    # Load environment variables from `.env` file
+    env_loaded = load_dotenv()
+    if env_loaded:
+        print('Loaded environment variables from ".env" file.')
+    else:
+        print('".env" file is missing, empty, or invalid.')
+except ImportError:
+    print(
+        'Unable to import the "dotenv" module.  Please install it with '
+        '`pip install python-dotenv` to load environment variables from '
+        'a ".env" file.  Otherwise, set them in the environment manually.  '
+        'See ".env.example" for more information.')
+
 loader = CanvasLoader(
-	api_url = "https://CANVAS_API_URL_GOES_HERE",
-	course_id = CANVAS_ID_GOES_HERE,
-	api_key = "API_KEY_GOES_HERE"
+    api_url=os.getenv('TEST_CANVAS_API_URL', 'https://umich.instructure.com'),
+    api_key=os.getenv('TEST_CANVAS_API_KEY'),
+    course_id=int(os.getenv('TEST_CANVAS_COURSE_ID')),
 )
 
 try:
-	documents = loader.load()
+    documents = loader.load()
 
-	print("\nDocuments:\n")
-	print(documents)
+    print("\nDocuments:\n")
+    print('\n\n'.join(map(repr, documents)))
 
-	print("\nInvalid files:\n")
-	print(loader.invalid_files)
-	print("")
+    print("\nInvalid files:\n")
+    print(loader.invalid_files)
+    print("")
 
-	print("\nErrors:\n")
-	print(loader.errors)
-	print("")
+    print("\nErrors:\n")
+    print(loader.errors)
+    print("")
 
-	print("\nIndexed:\n")
-	print(loader.indexed_items)
-	print("")
+    print("\nIndexed:\n")
+    print(loader.indexed_items)
+    print("")
 
-	print("\nProgress:\n")
-	print(loader.get_details('DEBUG'))
-	print("")
-except Exception as exc:
-	details = loader.get_details('DEBUG')
-	print(details)
+    print("\nProgress:\n")
+    print('\n'.join(
+        [f'{m.level} — {m.message}' for m in loader.get_details('DEBUG')[0]]))
+    print("")
 
-	print(exc)
+except Exception as ex:
+    print(loader.get_details('DEBUG'))
+    print(ex)

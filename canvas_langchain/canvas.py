@@ -1,26 +1,25 @@
 """Loads Pages, Announcements, Assignments and Files from a Canvas Course site."""
-
-import tempfile
 import json
+import logging
 import os
+import tempfile
+from datetime import date, datetime
 from io import BytesIO
 from typing import Any, List, Literal
-from pydantic import BaseModel
-from datetime import date, datetime
-import pytz
 
+import pytz
+from LangChainKaltura import KalturaCaptionLoader
+from LangChainKaltura.MiVideoAPI import MiVideoAPI
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
-
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import UnstructuredExcelLoader
-from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_community.document_loaders import UnstructuredMarkdownLoader
+from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_community.document_loaders import UnstructuredURLLoader
-
+from pydantic import BaseModel
 from striprtf.striprtf import rtf_to_text
 
-import logging
 logger = logging.getLogger(__name__)
 
 ch = logging.StreamHandler()
@@ -410,7 +409,7 @@ class CanvasLoader(BaseLoader):
         ]
 
         if file_content_type in allowed_content_types:
-            self.logMessage(message=f"Processing {file.filename} {file.mime_class}", level="DEBUG")
+            self.logMessage(message=f"Processing file: {repr(file.filename)} ({file.mime_class})", level="DEBUG")
 
             if file_content_type == "text/plain":
                 file_documents = file_documents + self._load_text_file(file)
@@ -500,7 +499,7 @@ class CanvasLoader(BaseLoader):
                                 # Don't try indexing page
                                 continue
 
-                            self.logMessage(message=f"Indexing page {module_item.title} ({module_item.page_url})", level="DEBUG")
+                            self.logMessage(message=f"Indexing page: {repr(module_item.title)} ({module_item.page_url})", level="DEBUG")
 
                             try:
                                 page = course.get_page(module_item.page_url)
@@ -518,7 +517,7 @@ class CanvasLoader(BaseLoader):
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_assignment", entity_type="assignment", entity_id=module_item.content_id)
                     elif module_item.type == "File":
-                        self.logMessage(message=f"Indexing file {module_item.title} ({module_item.content_id})", level="DEBUG")
+                        self.logMessage(message=f"Indexing file {repr(module_item.title)} ({module_item.content_id})", level="DEBUG")
                         if f"File:{module_item.content_id}" not in self.indexed_items:
                             try:
                                 file = course.get_file(module_item.content_id)
@@ -536,7 +535,7 @@ class CanvasLoader(BaseLoader):
                             # Don't try indexing external URL
                             continue
 
-                        self.logMessage(message=f"Indexing file {module_item.title} ({module_item.external_url})", level="DEBUG")
+                        self.logMessage(message=f"Indexing file {repr(module_item.title)} ({module_item.external_url})", level="DEBUG")
 
                         if f"ExternalUrl:{module_item.external_url}" not in self.indexed_items:
                             try:
@@ -551,6 +550,67 @@ class CanvasLoader(BaseLoader):
             self._error_logger(error=error, action="get_modules", entity_type="course", entity_id=course.id)
 
         return module_documents
+
+    def load_mivideo(self, course_id: int, user_id: int) -> List[Document]:
+        """
+        Load MiVideo media captions from Media Gallery LTI.
+
+        :param course_id: Canvas course ID
+        :type course_id: int
+        :param user_id: Canvas user ID
+        :type user_id: int
+        :return: List of LangChain Document objects containing media captions
+        :rtype: List[Document]
+        """
+
+        mivideo_documents = []
+
+        try:
+            api = MiVideoAPI(
+                host=os.getenv('MIVIDEO_API_HOST'),
+                authId=os.getenv('MIVIDEO_API_AUTH_ID'),
+                authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'))
+
+            languages = os.getenv('MIVIDEO_LANGUAGE_CODES_CSV')
+            if not languages:
+                languages = KalturaCaptionLoader.LANGUAGES_DEFAULT
+            else:
+                languages = set(languages.split(','))
+
+            caption_loader = KalturaCaptionLoader(
+                apiClient=api,
+                courseId=str(int(course_id)),
+                userId=str(int(user_id)),
+                languages=languages,
+                urlTemplate=os.getenv('MIVIDEO_SOURCE_URL_TEMPLATE'),
+                chunkSeconds=int(
+                    os.getenv('MIVIDEO_CHUNK_SECONDS') or
+                    KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT))
+
+            mivideo_documents = caption_loader.load()
+
+            course_url_template = os.getenv('CANVAS_COURSE_URL_TEMPLATE')
+
+            # set `course_context` metadata field with course URL
+            if course_url_template:
+                def update_metadata(doc):
+                    doc.metadata['course_context'] = (
+                        course_url_template.format(courseId=course_id))
+                    return doc
+
+                mivideo_documents = list(
+                    map(update_metadata, mivideo_documents))
+
+            # Add indexed items to list
+            self.indexed_items.extend(
+                set('MiVideo:' + doc.metadata['media_id'] for doc in
+                    mivideo_documents))
+        except Exception as ex:
+            self.logMessage(
+                message=f'Error loading MiVideo Media Gallery captions: {ex}',
+                level='INFO')
+
+        return mivideo_documents
 
     def load(self) -> List[Document]:
         """Load documents."""
@@ -619,6 +679,24 @@ class CanvasLoader(BaseLoader):
             tabs = course.get_tabs()
 
             available_tabs = []
+            # Canvas Tab labels are the names shown in the UI
+            # Useful because LTIs all have IDs like 'external_tool'
+            available_tabs_labels = [t.label for t in tabs]
+
+            # Load MiVideo media captions from Media Gallery LTI
+            if 'Media Gallery' in available_tabs_labels:
+                self.logMessage(
+                    'Loading MiVideo Media Gallery captions',
+                    'DEBUG')
+                mivideo_documents = self.load_mivideo(
+                    self.returned_course_id,
+                    # Allow overriding user ID in development
+                    os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
+                              canvas.get_current_user().id))
+                docs.extend(mivideo_documents)
+                self.logMessage(
+                    f'Loaded MiVideo Media Gallery captions: {len(mivideo_documents)}',
+                    'DEBUG')
 
             for tab in tabs:
                 available_tabs.append(tab.id)
