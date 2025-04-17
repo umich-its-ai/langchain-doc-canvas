@@ -1,7 +1,7 @@
 langchain==0.2.1
 langchain-community==0.2.1
 unstructured==0.14.2
-canvasapi==3.2.0
+canvasapi==3.3.0
 beautifulsoup4==4.12.3
 lxml==5.2.2
 PyPDF2==3.0.1
