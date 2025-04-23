@@ -70,8 +70,12 @@ class CanvasLoader(BaseLoader):
         self.course = self.canvas.get_course(self.course_id,
                                              include=['syllabus_body'])
         self.returned_course_id = self.course.id
+        self.canvas_ui_hostname = os.getenv('CANVAS_UI_HOSTNAME',
+                                            'umich.instructure.com')
 
         self.mivideo_api = None
+        self.mivideo_kaf_hostname = os.getenv('MIVIDEO_KAF_HOSTNAME',
+                                              'aakaf.mivideo.it.umich.edu')
         self.caption_loader = None
 
         self.invalid_files = []
@@ -259,7 +263,8 @@ class CanvasLoader(BaseLoader):
         # Extra checking to be sure URL is for a Canvas LTI 1.1
         # embedding, because its `url` parameter could be commonly found
         # in other URLs.
-        if not (parsed_url.netloc.lower() == 'umich.instructure.com'
+        # Matches `https://<canvas_ui_hostname>/courses/<course_id>/external_tools/retrieve?url=<embed_url>`
+        if not (parsed_url.netloc.lower() == self.canvas_ui_hostname
                 and parsed_url.path.lower().startswith('/courses/')
                 and parsed_url.path.lower().endswith('/external_tools/retrieve')):
             return None
@@ -326,7 +331,7 @@ class CanvasLoader(BaseLoader):
         """
         parsed = urlparse(url)
 
-        if parsed.netloc != 'aakaf.mivideo.it.umich.edu':
+        if parsed.netloc != self.mivideo_kaf_hostname:
             return None
 
         path_parts = parsed.path.split('/')
