@@ -5,6 +5,7 @@ import os
 import tempfile
 from datetime import date, datetime
 from io import BytesIO
+from typing import Any, List, Literal, Dict
 from urllib.parse import parse_qs, urlparse, urljoin
 
 import pytz
@@ -21,8 +22,8 @@ from langchain_community.document_loaders import UnstructuredMarkdownLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_community.document_loaders import UnstructuredURLLoader
 from pydantic import BaseModel
+from requests import HTTPError
 from striprtf.striprtf import rtf_to_text
-from typing import Any, List, Literal, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,7 @@ class CanvasLoader(BaseLoader):
                                             'umich.instructure.com')
 
         self.mivideo_api = None
+        self.mivideo_unauthorized = False
         self.mivideo_kaf_hostname = os.getenv('MIVIDEO_KAF_HOSTNAME',
                                               'aakaf.mivideo.it.umich.edu')
         self.caption_loader = None
@@ -840,10 +842,16 @@ class CanvasLoader(BaseLoader):
         :return: List of LangChain Document objects containing media captions
         :rtype: List[Document]
         """
-        self.logMessage('Loading MiVideo '
-                        'single media' if media_id else 'Media Gallery'
-                                                        ' captions',
-                        'DEBUG')
+        self.logMessage('Loading MiVideo captions for '
+                        f'single media "{media_id}"' if media_id
+                        else 'Media Gallery',
+                        'INFO')
+
+        if self.mivideo_unauthorized:
+            self.logMessage(
+                'MiVideo API prior request unauthorized; skipping caption load',
+                'INFO')
+            return []
 
         mivideo_documents = []
 
@@ -880,9 +888,21 @@ class CanvasLoader(BaseLoader):
             self.indexed_items.extend(
                 set('MiVideo:' + doc.metadata['media_id'] for doc in
                     mivideo_documents))
+        except HTTPError as ex:
+            self.logMessage(
+                message=f'HTTP {ex.response.status_code} Error loading MiVideo captions: {ex}',
+                level='INFO')
+
+            if ex.response.status_code == 401:
+                self.logMessage(
+                    message='MiVideo caption request unauthorized.  '
+                            'Skipping subsequent caption requests.',
+                    level='INFO')
+                self.mivideo_unauthorized = True
+
         except Exception as ex:
             self.logMessage(
-                message=f'Error loading MiVideo Media Gallery captions: {ex}',
+                message=f'Error loading MiVideo captions: {ex}',
                 level='INFO')
 
         self.logMessage(
