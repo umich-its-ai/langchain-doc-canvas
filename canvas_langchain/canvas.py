@@ -27,6 +27,12 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
+
+class CustomForbiddenException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
 class LogStatement(BaseModel):
     """
     INFO can be user-facing statements, non-technical and perhaps very high-level
@@ -653,7 +659,7 @@ class CanvasLoader(BaseLoader):
             File.get_contents = patched_get_contents
             File.download = patched_download
 
-            from canvasapi.exceptions import CanvasException
+            from canvasapi.exceptions import CanvasException, Forbidden
         except ImportError as exc:
             raise ImportError(
                 "Could not import canvasapi python package."
@@ -739,6 +745,13 @@ class CanvasLoader(BaseLoader):
                 self.logMessage(message=f"{len(self.errors)} file(s) were unable to be indexed.", level="INFO")
 
             return docs
+        except Forbidden as error:
+            self._error_logger(error=error, action="get_course", entity_type="course", entity_id=self.course_id)
+            exception_message = (
+                "User forbidden from accessing Canvas course. " 
+                "Please check user permissions and course availability."
+            )
+            raise CustomForbiddenException(message=exception_message)
         except CanvasException as error:
             self._error_logger(error=error, action="get_course", entity_type="course", entity_id=self.course_id)
 
