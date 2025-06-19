@@ -18,7 +18,7 @@ setup(
         "langchain",
         "langchain-community",
         "unstructured[docx,pptx]",
-        "canvasapi=3.3.0",
+        "canvasapi==3.3.0",
         "beautifulsoup4",
         "lxml",
         "PyPDF2[crypto]",
@@ -30,6 +30,7 @@ setup(
         "xlrd",
         "markdown",
         "pytz",
+        'LangChainKaltura @ git+https://github.com/tl-its-umich-edu/langchain_kaltura@2025.03.01#egg=LangChainKaltura'
     ],
     python_requires=">=3.8.1",
 )
