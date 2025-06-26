@@ -39,6 +39,7 @@ try:
     print("")
 
     print("\nIndexed:\n")
+    loader.indexed_items.sort()
     print(loader.indexed_items)
     print("")
 

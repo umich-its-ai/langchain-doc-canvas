@@ -5,11 +5,16 @@ import os
 import tempfile
 from datetime import date, datetime
 from io import BytesIO
-from typing import Any, List, Literal
+from typing import Any, List, Literal, Dict
+from urllib.parse import parse_qs, urlparse, urljoin
 
 import pytz
 from LangChainKaltura import KalturaCaptionLoader
 from LangChainKaltura.MiVideoAPI import MiVideoAPI
+from LangChainKaltura.KalturaAPI import KalturaAPI
+from bs4 import BeautifulSoup, PageElement, ResultSet
+from canvasapi import Canvas
+from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
 from langchain_community.document_loaders import Docx2txtLoader
@@ -18,6 +23,7 @@ from langchain_community.document_loaders import UnstructuredMarkdownLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
 from langchain_community.document_loaders import UnstructuredURLLoader
 from pydantic import BaseModel
+from requests import HTTPError
 from striprtf.striprtf import rtf_to_text
 
 logger = logging.getLogger(__name__)
@@ -55,8 +61,25 @@ class CanvasLoader(BaseLoader):
         self.api_url = api_url
         self.api_key = api_key
         self.course_id = course_id
-        self.returned_course_id = 0
         self.index_external_urls = index_external_urls
+
+        self.canvas = Canvas(api_url, api_key)
+
+        # Allow user ID override for development
+        self.canvas_user_id = os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
+                                        self.canvas.get_current_user().id)
+
+        self.course = self.canvas.get_course(self.course_id,
+                                             include=['syllabus_body'])
+        self.returned_course_id = self.course.id
+        self.canvas_ui_hostname = os.getenv('CANVAS_UI_HOSTNAME',
+                                            'umich.instructure.com')
+
+        self.mivideo_api = None
+        self.mivideo_unauthorized = False
+        self.mivideo_kaf_hostname = os.getenv('MIVIDEO_KAF_HOSTNAME',
+                                              'aakaf.mivideo.it.umich.edu')
+        self.caption_loader = None
 
         self.invalid_files = []
         self.indexed_items = []
@@ -65,22 +88,25 @@ class CanvasLoader(BaseLoader):
         self.progress = []
 
     def _get_syllabus_url(self) -> str:
-        return f"{self.api_url}/courses/{self.returned_course_id}/assignments/syllabus"
+        return urljoin(self.api_url,
+                       f'/courses/{self.returned_course_id}/assignments/syllabus')
 
     def _get_page_url(self, page_url) -> str:
-        return f"{self.api_url}/courses/{self.returned_course_id}/pages/{page_url}"
+        return urljoin(self.api_url,
+                       f'/courses/{self.returned_course_id}/pages/{page_url}')
 
     def _get_file_url(self, file_id) -> str:
-        return f"{self.api_url}/courses/{self.returned_course_id}/files/{file_id}"
+        return urljoin(self.api_url,
+                       f'/courses/{self.returned_course_id}/files/{file_id}')
 
-    def load_pages(self, course) -> List[Document]:
+    def load_pages(self) -> List[Document]:
         """Loads all published pages from a canvas course."""
-        from canvasapi.exceptions import CanvasException
+        self.logMessage(message='Load pages', level='DEBUG')
 
         page_documents = []
 
         try:
-            pages = course.get_pages(
+            pages = self.course.get_pages(
                 published=True,
                 include=[ "body" ]
             )
@@ -114,59 +140,73 @@ class CanvasLoader(BaseLoader):
 
     def load_page(self, page) -> List[Document]:
         """Load a specific page."""
+        page_docs = []
+
         try:
-            if page.locked_for_user == True:
+            if page.locked_for_user:
                 # Page is locked
                 self.logMessage(message=f"Page ({page.title}) locked - cannot index", level="DEBUG")
                 return []
 
             if page.body:
-                page_body_text = self._get_html_as_string(page.body)
+                (page_body_text, embed_urls) = self._get_text_and_embed_urls(
+                    page.body)
+                page_url = self._get_page_url(page.url)
 
-                return [Document(
-                    page_content=page_body_text.strip(),
-                    metadata={ "filename": page.title, "source": self._get_page_url(page.url), "kind": "page", "page_id": page.page_id }
-                )]
-            else:
-                # Page with no content - None
-                return []
+                page_docs.append(Document(
+                    page_content=page_body_text,
+                    metadata={"filename": page.title, "source": page_url,
+                              "kind": "page", "page_id": page.page_id}
+                ))
+
+                page_docs.extend(self.load_media_embeds(
+                    embed_urls, metadata={
+                        'filename': f'"{page.title}" embedded media',
+                        'course_context': page_url}))
+
+            return page_docs
         except AttributeError as error:
             self._error_logger(error=error, action="load_page", entity_type="page", entity_id=page.page_id)
             return []
 
-    def load_announcements(self, canvas, course) -> List[Document]:
+    def load_announcements(self) -> List[Document]:
         """Loads all announcements from a canvas course."""
-        from canvasapi.exceptions import CanvasException
-
+        self.logMessage(message="Load announcements", level="DEBUG")
         announcement_documents = []
 
         try:
-            announcements = canvas.get_announcements(
-                context_codes=[ course ],
+            announcements = self.canvas.get_announcements(
+                context_codes=[self.course],
                 start_date="2016-01-01",
                 end_date=date.today().isoformat(),
             )
 
             for announcement in announcements:
-                page_body_text = self._get_html_as_string(announcement.message)
+                (page_body_text, embed_urls) = self._get_text_and_embed_urls(announcement.message)
 
                 announcement_documents.append(Document(
                     page_content=page_body_text,
                     metadata={ "filename": announcement.title, "source": announcement.html_url, "kind": "announcement", "announcement_id": announcement.id }
                 ))
+
+                announcement_documents.extend(self.load_media_embeds(
+                    embed_urls,
+                    metadata={
+                        'filename': f'"{announcement.title}" embedded media',
+                        'course_context': announcement.html_url}))
         except CanvasException as error:
             self._error_logger(error=error, action="get_announcements", entity_type="announcement", entity_id=announcement.id)
 
         return announcement_documents
 
-    def load_assignments(self, course) -> List[Document]:
+    def load_assignments(self) -> List[Document]:
         """Loads all assignments from a canvas course."""
-        from canvasapi.exceptions import CanvasException
+        self.logMessage(message="Load assignments", level="DEBUG")
 
         assignment_documents = []
 
         try:
-            assignments = course.get_assignments()
+            assignments = self.course.get_assignments()
 
             for assignment in assignments:
                 if f"Assignment:{assignment.id}" not in self.indexed_items:
@@ -179,6 +219,9 @@ class CanvasLoader(BaseLoader):
 
     def load_assignment(self, assignment, module=None, locked=False, unlock_at_datetime=None) -> List[Document]:
         """Load a specific assignment."""
+        assignment_documents = []
+        embed_urls = []
+
         if locked and unlock_at_datetime:
             friendly_time = unlock_at_datetime
 
@@ -189,32 +232,161 @@ class CanvasLoader(BaseLoader):
             assignment_description = f"This assignment is part of the module {module.name}, which is locked until {formatted_datetime}."
         else:
             if assignment.description:
-                assignment_description = self._get_html_as_string(assignment.description)
+                (assignment_description, embed_urls) = self._get_text_and_embed_urls(assignment.description)
                 assignment_description = f"Assignment Description: {assignment_description}\n\n"
             else:
                 assignment_description = ""
 
         assignment_content=f"Assignment Name: {assignment.name} \n\n Assignment Due Date: {assignment.due_at} \n\n Assignment Points Possible: {assignment.points_possible} \n\n{assignment_description}"
 
-        return [Document(
+        assignment_documents.append(
+            Document(
             page_content=assignment_content,
-            metadata={ "filename": assignment.name, "source": assignment.html_url, "kind": "assignment", "assignment_id": assignment.id }
-        )]
+            metadata={ "filename": assignment.name, "source": assignment.html_url, "kind": "assignment", "assignment_id": assignment.id }))
 
-    def _get_html_as_string(self, html) -> str:
-        """Use BeautifulSoup 4 to parse a html string and return a simplified string."""
+        if embed_urls:
+            assignment_documents.extend(self.load_media_embeds(
+                embed_urls, metadata={
+                    'filename': f'"{assignment.name}" embedded media',
+                    'course_context': assignment.html_url}))
+
+        return assignment_documents
+
+    def _get_embed_url_canvas_url(self, url) -> str | None:
+        """
+        Get the embedded resource URL from a Canvas LTI 1.1 embedding URL.
+
+        :param url: Canvas embedding URL
+        :type url: str
+        :return: URL contained in the embed URL
+        :rtype: str | None
+        """
+        parsed_url = urlparse(url)
+
+        # Extra checking to be sure URL is for a Canvas LTI 1.1
+        # embedding, because its `url` parameter could be commonly found
+        # in other URLs.
+        # Matches `https://<canvas_ui_hostname>/courses/<course_id>/external_tools/retrieve?url=<embed_url>`
+        if not (parsed_url.netloc.lower() == self.canvas_ui_hostname
+                and parsed_url.path.lower().startswith('/courses/')
+                and parsed_url.path.lower().endswith('/external_tools/retrieve')):
+            return None
+
+        return parse_qs(parsed_url.query).get('url', [None]).pop()
+
+    def _get_uuid_canvas_iframe_url(self, url) -> str | None:
+        """
+        Get the resource link UUID from a Canvas iframe URL.
+
+        If the URL has a query string with a `resource_link_lookup_uuid`
+        parameter, return its value.  Otherwise, return None.
+
+        :param url: Canvas iframe URL
+        :type url: str
+        :return: UUID from the URL
+        :rtype: str | None
+        """
+        return parse_qs(urlparse(url).query
+                        ).get('resource_link_lookup_uuid',
+                              [None]).pop()
+
+    def _get_embed_url_canvas_uuid(self, uuid: str) -> str | None:
+        """
+        Get the embed URL for a Canvas UUID.
+
+        :param uuid: UUID for a Canvas resource
+        :type uuid: str
+        :return: Embed URL for the UUID
+        :rtype: str | None
+        """
+        self.logMessage(f'Getting embed URL for UUID "{uuid}"…', level='DEBUG')
+
+        url = None
+
+        endpoint = (f'courses/{self.course_id}/lti_resource_links/'
+                    f'lookup_uuid:{uuid}')
+
         try:
-            # Import the html parser class
-            from bs4 import BeautifulSoup
-        except ImportError as exc:
-            raise ImportError(
-                "Could not import beautifulsoup4 python package. "
-                "Please install it with `pip install beautifulsoup4`."
-            ) from exc
+            response = self.canvas._Canvas__requester.request('GET', endpoint)
 
-        html_string = BeautifulSoup(html, "lxml").text.strip()
+            url = response.json().get('url')
+        except CanvasException as error:
+            self.logMessage( 'Error getting embed URL for UUID '
+                             f'"{uuid}": {error}', level='WARNING')
 
-        return html_string
+        if url:
+            self.logMessage(f'Embed URL for UUID "{uuid}": {url}',
+                            level='DEBUG')
+
+        return url
+
+    def _get_mivideo_media_id_url(self, url: str) -> str | None:
+        """
+        Get the media ID from a MiVideo URL.
+
+        If the URL has a path with an `entryid` parameter, return its value.
+        Otherwise, return None.
+
+        :param url: MiVideo URL
+        :type url: str
+        :return: Media ID from the URL
+        :rtype: str | None
+        """
+        parsed = urlparse(url)
+
+        if parsed.netloc != self.mivideo_kaf_hostname:
+            return None
+
+        path_parts = parsed.path.split('/')
+        try:
+            return path_parts[path_parts.index('entryid') + 1]
+        except ValueError:
+            return None
+
+    def _get_text_and_embed_urls(self, html) -> (str, List[str]):
+        """
+        Extracts text and embedded URLs from HTML content.
+
+        This function uses BeautifulSoup to parse the provided HTML content,
+        extracts the text, and identifies any embedded URLs within iframe
+        elements.  It returns the extracted text and a list of embedded URLs.
+
+        :param html: The HTML content to parse.
+        :type html: str
+        :return: A tuple containing the extracted text (`strip()`'d) and a list
+          of embedded URLs.
+        :rtype: tuple(str, List[str])
+        """
+
+        bs = BeautifulSoup(html, 'lxml')
+
+        doc_text = bs.text.strip()
+
+        embed_urls = []
+
+        iframes: ResultSet[PageElement] = bs.find_all('iframe')
+        # iframes = [] # XXX: disable embedded media indexing
+        iframe: PageElement
+        for iframe in iframes:
+            iframe_src_url = iframe.get('src')
+
+            # LTI 1.3 embed URLs, protected by UUID
+            if (embedded_media_uuid :=
+            self._get_uuid_canvas_iframe_url(iframe_src_url)) and (
+            embed_url := self._get_embed_url_canvas_uuid(
+                embedded_media_uuid)):
+                embed_urls.append(embed_url)
+
+            # LTI 1.1 embed URLs, link directly to the media
+            elif (embed_url := self._get_embed_url_canvas_url(iframe_src_url)):
+                embed_urls.append(embed_url)
+
+            else:
+                self.logMessage(f'Embed URL "{iframe_src_url}" '
+                                'is NOT for Canvas or does not use UUID',
+                                level='DEBUG')
+
+        return doc_text, embed_urls
 
     def _load_text_file(self, file) -> List[Document]:
         file_contents = file.get_contents(binary=False)
@@ -225,12 +397,21 @@ class CanvasLoader(BaseLoader):
         )]
 
     def _load_html_file(self, file) -> List[Document]:
+        file_documents = []
         file_contents = file.get_contents(binary=False)
+        (file_text, embed_urls) = self._get_text_and_embed_urls(file_contents)
 
-        return [Document(
-            page_content=self._get_html_as_string(file_contents),
+        file_documents.append(Document(
+            page_content=file_text,
             metadata={ "filename": file.filename, "source": file.url, "kind": "file", "file_id": file.id }
-        )]
+        ))
+
+        file_documents.extend(self.load_media_embeds(
+            embed_urls, metadata={
+                'filename': f'"{file.filename}" embedded media',
+                'course_context': file.url}))
+
+        return file_documents
 
     def _load_rtf_file(self, file) -> List[Document]:
         file_contents = file.get_contents(binary=False)
@@ -361,14 +542,13 @@ class CanvasLoader(BaseLoader):
         else:
             self.logMessage(message = { "message": error.message[0]["message"], "action": action, "entity_type": entity_type, "entity_id": entity_id }, level = 'WARNING')
 
-    def load_files(self, course) -> List[Document]:
-        """Loads all files from a canvas course."""
-        from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
-
+    def load_files(self) -> List[Document]:
+        """Loads all files from a Canvas course."""
+        self.logMessage(message='Load files', level='DEBUG')
         file_documents = []
 
         try:
-            files = course.get_files()
+            files = self.course.get_files()
 
             for file in files:
                 try:
@@ -380,7 +560,9 @@ class CanvasLoader(BaseLoader):
                     file_content_type = getattr(file, "content-type")
                     self.invalid_files.append(f"{file.filename} ({file_content_type})")
         except CanvasException as error:
-            self._error_logger(error=error, action="get_files", entity_type="course", entity_id=course.id)
+            self._error_logger(error=error, action="get_files",
+                               entity_type="course",
+                               entity_id=self.returned_course_id)
 
         return file_documents
 
@@ -409,7 +591,7 @@ class CanvasLoader(BaseLoader):
         ]
 
         if file_content_type in allowed_content_types:
-            self.logMessage(message=f"Processing file: {repr(file.filename)} ({file.mime_class})", level="DEBUG")
+            self.logMessage(message=f"Processing file: {repr(file.filename)} ({file.mime_class}: {file_content_type})", level="DEBUG")
 
             if file_content_type == "text/plain":
                 file_documents = file_documents + self._load_text_file(file)
@@ -446,32 +628,74 @@ class CanvasLoader(BaseLoader):
 
         return url_docs
 
-    def load_syllabus(self, course) -> List[Document]:
+    def load_media_embeds(self, urls: List[str],
+                          metadata: Dict[str, Any] = {}) -> List[Document]:
+        docs = []
+
+        for url in urls:
+            self.logMessage(
+                f'Checking embed URL "{url}"…',
+                level='DEBUG')
+
+            if (mivideo_media_id := self._get_mivideo_media_id_url(url)):
+                docs.extend(self.load_mivideo(media_id=mivideo_media_id))
+                continue
+
+            self.logMessage(
+                f'Embed URL "{url}" is NOT for MiVideo',
+                level='DEBUG')
+
+            # TODO: Add YouTube support
+            # For example…
+            # if (youtube_media_id := self._get_youtube_media_id_url(url)):
+            #     docs.extend(self.load_youtube(
+            #         self.returned_course_id,
+            #         self.canvas_user_id,
+            #         media_id=youtube_media_id))
+            #     continue
+
+        for doc in docs:
+            doc.metadata.update(metadata)
+
+        return docs
+
+    def load_syllabus(self) -> List[Document]:
+        self.logMessage(message='Load syllabus', level='DEBUG')
+
+        syllabus_docs = []
+
         try:
-            syllabus_body = course.syllabus_body
-
-            if not syllabus_body:
+            if not self.course.syllabus_body:
                 return []
 
-            page_body_text = self._get_html_as_string(course.syllabus_body)
+            (syllabus_body_text, embed_urls) = self._get_text_and_embed_urls(
+                self.course.syllabus_body)
+            syllabus_url = self._get_syllabus_url()
 
-            if len(page_body_text.strip()) == 0:
-                return []
+            if syllabus_body_text:
+                syllabus_docs.append(Document(
+                    page_content=syllabus_body_text,
+                    metadata={"filename": "Course Syllabus",
+                              "source": syllabus_url,
+                              "kind": "syllabus"}
+                ))
 
-            return [Document(
-                page_content=page_body_text.strip(),
-                metadata={ "filename": "Course Syllabus", "source": self._get_syllabus_url(), "kind": "syllabus" }
-            )]
+            syllabus_docs.extend(self.load_media_embeds(
+                embed_urls, metadata={
+                    'filename': '"Course Syllabus" embedded media',
+                    'course_context': syllabus_url}))
         except AttributeError:
             return []
 
-        return []
+        return syllabus_docs
 
-    def load_modules(self, course) -> List[Document]:
+    def load_modules(self) -> List[Document]:
         """Loads all modules from a canvas course."""
-        from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
+        self.logMessage(message='Load modules', level='DEBUG')
 
         module_documents = []
+
+        course = self.course
 
         try:
             modules = course.get_modules()
@@ -508,6 +732,7 @@ class CanvasLoader(BaseLoader):
                             except CanvasException as error:
                                 self._error_logger(error=error, action="get_page", entity_type="page", entity_id=module_item.page_url)
                     elif module_item.type == "Assignment":
+                        # if the assignment is locked, index it with a message that it is locked
                         self.logMessage(message=f"Indexing assignment {module_item.title} ({module_item.content_id})", level="DEBUG")
                         if f"Assignment:{module_item.content_id}" not in self.indexed_items:
                             try:
@@ -535,7 +760,7 @@ class CanvasLoader(BaseLoader):
                             # Don't try indexing external URL
                             continue
 
-                        self.logMessage(message=f"Indexing file {repr(module_item.title)} ({module_item.external_url})", level="DEBUG")
+                        self.logMessage(message=f"Indexing URL {repr(module_item.title)} ({module_item.external_url})", level="DEBUG")
 
                         if f"ExternalUrl:{module_item.external_url}" not in self.indexed_items:
                             try:
@@ -551,26 +776,42 @@ class CanvasLoader(BaseLoader):
 
         return module_documents
 
-    def load_mivideo(self, course_id: int, user_id: int) -> List[Document]:
+    def _get_mivideo_api(self) -> MiVideoAPI:
         """
-        Load MiVideo media captions from Media Gallery LTI.
+        Get MiVideo API client.  If it has already been created, return it,
+        otherwise create a new one.
 
-        :param course_id: Canvas course ID
-        :type course_id: int
-        :param user_id: Canvas user ID
-        :type user_id: int
-        :return: List of LangChain Document objects containing media captions
-        :rtype: List[Document]
+        :raises: Exception if MiVideo API client cannot be created
+        :return: MiVideo API client
+        :rtype: MiVideoAPI
         """
-
-        mivideo_documents = []
+        if self.mivideo_api:
+            return self.mivideo_api
 
         try:
-            api = MiVideoAPI(
-                host=os.getenv('MIVIDEO_API_HOST'),
-                authId=os.getenv('MIVIDEO_API_AUTH_ID'),
-                authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'))
+            api = MiVideoAPI(host=os.getenv('MIVIDEO_API_HOST'),
+                             authId=os.getenv('MIVIDEO_API_AUTH_ID'),
+                             authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'))
+            # api = KalturaAPI(os.getenv('KALTURA_SESSION_TOKEN'))
+            self.mivideo_api = api
+            return api
+        except Exception as ex:
+            self.logMessage(message=f'Error getting MiVideo API: {ex}',
+                            level='INFO')
 
+    def _get_caption_loader(self) -> KalturaCaptionLoader:
+        """
+        Get KalturaCaptionLoader.  If it has already been created, return it,
+        otherwise create a new one.
+
+        :raises: Exception if KalturaCaptionLoader cannot be created
+        :return: Kaltura caption loader instance
+        :rtype: KalturaCaptionLoader
+        """
+        if self.caption_loader:
+            return self.caption_loader
+
+        try:
             languages = os.getenv('MIVIDEO_LANGUAGE_CODES_CSV')
             if not languages:
                 languages = KalturaCaptionLoader.LANGUAGES_DEFAULT
@@ -578,16 +819,60 @@ class CanvasLoader(BaseLoader):
                 languages = set(languages.split(','))
 
             caption_loader = KalturaCaptionLoader(
-                apiClient=api,
-                courseId=str(int(course_id)),
-                userId=str(int(user_id)),
+                apiClient=self._get_mivideo_api(),
+                courseId=str(int(self.returned_course_id)),
+                userId=str(int(self.canvas_user_id)),
                 languages=languages,
                 urlTemplate=os.getenv('MIVIDEO_SOURCE_URL_TEMPLATE'),
                 chunkSeconds=int(
                     os.getenv('MIVIDEO_CHUNK_SECONDS') or
                     KalturaCaptionLoader.CHUNK_SECONDS_DEFAULT))
 
-            mivideo_documents = caption_loader.load()
+            self.caption_loader = caption_loader
+            return caption_loader
+        except Exception as ex:
+            self.logMessage(
+                message=f'Error getting KalturaCaptionLoader: {ex}',
+                level='INFO')
+
+    def load_mivideo(self, media_id: str = None) -> List[Document]:
+        """
+        Load MiVideo media captions from Media Gallery LTI or from a single
+        media caption.
+
+        :param media_id: MiVideo media ID
+        :type media_id: str
+        :return: List of LangChain Document objects containing media captions
+        :rtype: List[Document]
+        """
+        self.logMessage('Loading MiVideo captions for '
+                        f'single media "{media_id}"' if media_id
+                        else 'Media Gallery',
+                        'INFO')
+
+        if self.mivideo_unauthorized:
+            self.logMessage(
+                'MiVideo API prior request unauthorized; skipping caption load',
+                'INFO')
+            return []
+
+        mivideo_documents = []
+
+        try:
+            caption_loader = self._get_caption_loader()
+
+            if media_id is None:
+                mivideo_documents = caption_loader.load()
+            else:
+                if f'MiVideo:{media_id}' in self.indexed_items:
+                    self.logMessage(
+                        f'MiVideo media {media_id} already indexed',
+                        'DEBUG')
+                    return mivideo_documents
+                mivideo_documents = caption_loader.fetchMediaCaption({
+                    'id': media_id,
+                    'name': 'unidentified embedded media',
+                })
 
             course_url_template = os.getenv('CANVAS_COURSE_URL_TEMPLATE')
 
@@ -595,7 +880,8 @@ class CanvasLoader(BaseLoader):
             if course_url_template:
                 def update_metadata(doc):
                     doc.metadata['course_context'] = (
-                        course_url_template.format(courseId=course_id))
+                        course_url_template.format(
+                            courseId=self.returned_course_id))
                     return doc
 
                 mivideo_documents = list(
@@ -605,10 +891,27 @@ class CanvasLoader(BaseLoader):
             self.indexed_items.extend(
                 set('MiVideo:' + doc.metadata['media_id'] for doc in
                     mivideo_documents))
+        except HTTPError as ex:
+            self.logMessage(
+                message=f'HTTP {ex.response.status_code} Error loading MiVideo captions: {ex}',
+                level='INFO')
+
+            if ex.response.status_code == 401:
+                self.logMessage(
+                    message='MiVideo caption request unauthorized.  '
+                            'Skipping subsequent caption requests.',
+                    level='INFO')
+                self.mivideo_unauthorized = True
+
         except Exception as ex:
             self.logMessage(
-                message=f'Error loading MiVideo Media Gallery captions: {ex}',
+                message=f'Error loading MiVideo captions: {ex}',
                 level='INFO')
+
+        self.logMessage(
+            f'Loaded MiVideo Media Gallery captions: '
+            f'{len(mivideo_documents)}',
+            'DEBUG')
 
         return mivideo_documents
 
@@ -618,118 +921,48 @@ class CanvasLoader(BaseLoader):
         docs = []
 
         try:
-            # Import the Canvas class
-            from canvasapi import Canvas
-
-            # see: https://github.com/ucfopen/canvasapi/issues/687
-            from canvasapi.file import File
-
-            def patched_download(self, location):
-                """
-                Download the file to specified location.
-
-                :param location: The path to download to.
-                :type location: str
-                """
-                response = self._requester.request("GET", _url=self.url, use_auth=False)
-
-                with open(location, "wb") as file_out:
-                    file_out.write(response.content)
-
-
-            def patched_get_contents(self, binary=False):
-                """
-                Download the contents of this file.
-                Pass binary=True to return a bytes object instead of a str.
-
-                :rtype: str or bytes
-                """
-                response = self._requester.request("GET", _url=self.url, use_auth=False)
-                if binary:
-                    return response.content
-                else:
-                    return response.text
-
-            File.get_contents = patched_get_contents
-            File.download = patched_download
-
-            from canvasapi.exceptions import CanvasException
-        except ImportError as exc:
-            raise ImportError(
-                "Could not import canvasapi python package."
-                "Please install it with `pip install canvasapi`."
-            ) from exc
-
-        try:
-            # Initialize a new Canvas object
-            canvas = Canvas(self.api_url, self.api_key)
-
-            course = canvas.get_course(self.course_id, include=[ "syllabus_body" ])
+            course = self.course
 
             # Access the course's name
             self.logMessage(message=f"Indexing: {course.name} ({course.id})", level="INFO")
 
-            self.returned_course_id = course.id
+            # Index syllabus explicitly, even if it is not in the tabs
+            # or linked from other resources.
+            docs.extend(self.load_syllabus())
 
-            # add syllabus
-            self.logMessage(message="Load syllabus", level="DEBUG")
-            docs = docs + self.load_syllabus(course=course)
-
-            # Checking to see which tools are available?
-            tabs = course.get_tabs()
-
-            available_tabs = []
-            # Canvas Tab labels are the names shown in the UI
-            # Useful because LTIs all have IDs like 'external_tool'
-            available_tabs_labels = [t.label for t in tabs]
+            # Course navigation tabs identify which tools are available.
+            # Tabs for LTIs have IDs like `context_external_tool_nnnnn`,
+            # which are not recognizable and may change.  The labels of
+            # those tabs will identify which LTIs are available.
+            tab_map = (lambda tab:
+                       tab.label if tab.id.startswith('context_external_tool_')
+                       else tab.id)
+            available_tabs = list(map(tab_map, course.get_tabs()))
 
             # Load MiVideo media captions from Media Gallery LTI
-            if 'Media Gallery' in available_tabs_labels:
-                self.logMessage(
-                    'Loading MiVideo Media Gallery captions',
-                    'DEBUG')
-                mivideo_documents = self.load_mivideo(
-                    self.returned_course_id,
-                    # Allow overriding user ID in development
-                    os.getenv('CANVAS_USER_ID_OVERRIDE_DEV_ONLY',
-                              canvas.get_current_user().id))
-                docs.extend(mivideo_documents)
-                self.logMessage(
-                    f'Loaded MiVideo Media Gallery captions: {len(mivideo_documents)}',
-                    'DEBUG')
-
-            for tab in tabs:
-                available_tabs.append(tab.id)
+            # available_tabs.remove('Media Gallery') # XXX: disable Media Gallery indexing
+            if 'Media Gallery' in available_tabs:
+                docs.extend(self.load_mivideo())
 
             # Load modules
             if "modules" in available_tabs:
-                self.logMessage(message="Load modules", level="DEBUG")
-                module_documents = self.load_modules(course=course)
-                docs = docs + module_documents
+                docs.extend(self.load_modules())
 
             # Load pages
             if "pages" in available_tabs:
-                self.logMessage(message="Load pages", level="DEBUG")
-                page_documents = self.load_pages(course=course)
-                docs = docs + page_documents
+                docs.extend(self.load_pages())
 
             # Load announcements
             if "announcements" in available_tabs:
-                self.logMessage(message="Load announcements", level="DEBUG")
-                announcement_documents = self.load_announcements(canvas=canvas, course=course)
-                docs = docs + announcement_documents
+                docs.extend(self.load_announcements())
 
             # Load assignments
             if "assignments" in available_tabs:
-                self.logMessage(message="Load assignments", level="DEBUG")
-                assignment_documents = self.load_assignments(course=course)
-                docs = docs + assignment_documents
+                docs.extend(self.load_assignments())
 
             # Load files
             if "files" in available_tabs:
-                self.logMessage(message="Load files", level="DEBUG")
-                file_documents = self.load_files(course=course)
-                docs = docs + file_documents
+                docs.extend(self.load_files())
 
             # Replace null character with space
             for doc in docs:
