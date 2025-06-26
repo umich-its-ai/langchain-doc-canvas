@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlparse, urljoin
 import pytz
 from LangChainKaltura import KalturaCaptionLoader
 from LangChainKaltura.MiVideoAPI import MiVideoAPI
+from LangChainKaltura.KalturaAPI import KalturaAPI
 from bs4 import BeautifulSoup, PageElement, ResultSet
 from canvasapi import Canvas
 from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
@@ -364,6 +365,7 @@ class CanvasLoader(BaseLoader):
         embed_urls = []
 
         iframes: ResultSet[PageElement] = bs.find_all('iframe')
+        # iframes = [] # XXX: disable embedded media indexing
         iframe: PageElement
         for iframe in iframes:
             iframe_src_url = iframe.get('src')
@@ -790,6 +792,7 @@ class CanvasLoader(BaseLoader):
             api = MiVideoAPI(host=os.getenv('MIVIDEO_API_HOST'),
                              authId=os.getenv('MIVIDEO_API_AUTH_ID'),
                              authSecret=os.getenv('MIVIDEO_API_AUTH_SECRET'))
+            # api = KalturaAPI(os.getenv('KALTURA_SESSION_TOKEN'))
             self.mivideo_api = api
             return api
         except Exception as ex:
@@ -937,6 +940,7 @@ class CanvasLoader(BaseLoader):
             available_tabs = list(map(tab_map, course.get_tabs()))
 
             # Load MiVideo media captions from Media Gallery LTI
+            # available_tabs.remove('Media Gallery') # XXX: disable Media Gallery indexing
             if 'Media Gallery' in available_tabs:
                 docs.extend(self.load_mivideo())
 
