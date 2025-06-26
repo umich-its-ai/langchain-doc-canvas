@@ -12,6 +12,6 @@ pydantic==2.7.1
 openpyxl==3.1.2
 xlrd==2.0.1
 Markdown==3.6
-pytz==2024.1
+pytz==2025.2
 # Egg name not required, but recommended to avoid pip conflicts.
-git+https://github.com/tl-its-umich-edu/langchain_kaltura@2025.03.01#egg=LangChainKaltura
+git+https://github.com/tl-its-umich-edu/langchain_kaltura@2025.06.01#egg=LangChainKaltura
