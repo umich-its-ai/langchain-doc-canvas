@@ -28,7 +28,7 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-class CustomForbiddenException(Exception):
+class UnpublishedCourseException(Exception):
     def __init__(self, message):
         super().__init__(message)
 
@@ -669,8 +669,15 @@ class CanvasLoader(BaseLoader):
         try:
             # Initialize a new Canvas object
             canvas = Canvas(self.api_url, self.api_key)
-
-            course = canvas.get_course(self.course_id, include=[ "syllabus_body" ])
+            try:
+                course = canvas.get_course(self.course_id, include=[ "syllabus_body" ])
+            except Forbidden as error:
+                self._error_logger(error=error, action="get_course", entity_type="course", entity_id=self.course_id)
+                exception_message = (
+                    "User forbidden from accessing Canvas course. " 
+                    "Please check user permissions and course availability."
+                )
+                raise UnpublishedCourseException(message=exception_message)
 
             # Access the course's name
             self.logMessage(message=f"Indexing: {course.name} ({course.id})", level="INFO")
@@ -745,13 +752,6 @@ class CanvasLoader(BaseLoader):
                 self.logMessage(message=f"{len(self.errors)} file(s) were unable to be indexed.", level="INFO")
 
             return docs
-        except Forbidden as error:
-            self._error_logger(error=error, action="get_course", entity_type="course", entity_id=self.course_id)
-            exception_message = (
-                "User forbidden from accessing Canvas course. " 
-                "Please check user permissions and course availability."
-            )
-            raise CustomForbiddenException(message=exception_message)
         except CanvasException as error:
             self._error_logger(error=error, action="get_course", entity_type="course", entity_id=self.course_id)
 
