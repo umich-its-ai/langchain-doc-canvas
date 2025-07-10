@@ -22,7 +22,7 @@ class PageLoader(BaseSectionLoader):
 
         except CanvasException:
             self.logger.logStatement(
-                message=f"Canvas exception loading pages", level="WARNING"
+                message="Canvas exception loading pages", level="WARNING"
             )
 
         return page_documents
@@ -40,7 +40,7 @@ class PageLoader(BaseSectionLoader):
                 )
                 self.indexed_items.add(f"Page:{page.page_id}")
 
-                page_body = self.parse_html(html=page.body)
+                page_body, embed_urls = self.parse_html(html=page.body)
 
                 page_url = urljoin(self.course_api, f"pages/{page.url}")
                 metadata = {
@@ -52,7 +52,7 @@ class PageLoader(BaseSectionLoader):
                         "id": page.page_id,
                     },
                 }
-                return self.process_data(metadata=metadata)
+                return self.process_data(metadata=metadata, embed_urls=embed_urls)
         except Exception as error:
             self.logger.logStatement(
                 message=f"Error loading page {page.title}: {error}", level="WARNING"

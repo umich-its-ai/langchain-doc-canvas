@@ -25,7 +25,7 @@ class SyllabusLoader(BaseSectionLoader):
                         "kind": "syllabus",
                     },
                 }
-                return self.process_data(metadata=metadata)
+                return self.process_data(metadata=metadata, embed_urls=embed_urls)
 
         except AttributeError as err:
             self.logger.logStatement(

@@ -12,7 +12,7 @@ class AnnouncementLoader(BaseSectionLoader):
         """Load all announcements for a Canvas course"""
         self.logger.logStatement(message="Loading announcements...\n", level="INFO")
 
-        announcement_documents = []
+        announcement_documents = embed_urls = []
         try:
             announcements = self.canvas_client_extractor.get_announcements()
 
@@ -35,7 +35,7 @@ class AnnouncementLoader(BaseSectionLoader):
             message=f"Loading announcement: {announcement.title}", level="DEBUG"
         )
         try:
-            announcement_text = self.parse_html(html=announcement.message)
+            announcement_text, embed_urls = self.parse_html(html=announcement.message)
             metadata = {
                 "content": announcement_text,
                 "data": {
@@ -45,7 +45,7 @@ class AnnouncementLoader(BaseSectionLoader):
                     "id": announcement.id,
                 },
             }
-            return self.process_data(metadata=metadata)
+            return self.process_data(metadata=metadata, embed_urls=embed_urls)
         except Exception as error:
             self.logger.logStatement(
                 message=f"Error loading announcement {announcement.title}: {error}",

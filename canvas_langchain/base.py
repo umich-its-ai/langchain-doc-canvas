@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 from abc import ABC, abstractmethod
 
 from langchain.docstore.document import Document
+from canvas_langchain.utils.embedded_media import parse_html_for_text_and_urls
+from canvas_langchain.utils.process_data import process_data
 from canvas_langchain.utils.logging import Logger
 
 from canvasapi.discussion_topic import DiscussionTopic
@@ -55,10 +57,9 @@ class BaseSectionLoader(ABC):
 
     def parse_html(self, html: str) -> str:
         """Extracts text and a list of embedded urls from HTML content"""
-        bs = BeautifulSoup(html, "lxml")
-        doc_text = bs.text.strip()
-        # Urls will be embedded in iframe tags
-        return doc_text
+        return parse_html_for_text_and_urls(
+            canvas=self.canvas, course=self.course, html=html, logger=self.logger
+        )
 
     def process_data(self, metadata: dict) -> list[Document]:
         """Process metadata on a single 'page'"""
