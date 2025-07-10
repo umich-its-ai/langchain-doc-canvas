@@ -30,7 +30,7 @@ class PageLoader(BaseSectionLoader):
             self.logger.logStatement(message=f"Loading page: {page.title}", level="DEBUG")
             self.indexed_items.add(f"Page:{page.page_id}")                      
 
-            page_body = self.parse_html(html=page.body)
+            page_body, embed_urls = self.parse_html(html=page.body)
            
             page_url = urljoin(self.course_api, f'pages/{page.url}')
             metadata={"content": page_body,
@@ -39,7 +39,7 @@ class PageLoader(BaseSectionLoader):
                              "kind": "page",
                              "id": page.page_id}
                     }
-            return self.process_data(metadata=metadata)
+            return self.process_data(metadata=metadata, embed_urls=embed_urls)
         return []
 
     def load_from_module(self, item: Page, **kwargs) -> list[Document]:

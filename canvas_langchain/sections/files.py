@@ -97,14 +97,14 @@ class FileLoader(BaseSectionLoader):
     def _load_html_file(self, file: File) -> list[Document]:
         """Loads and formats html file data"""
         file_contents = file.get_contents(binary=False)
-        file_text = self.parse_html(html=file_contents)
+        file_text, embed_urls = self.parse_html(html=file_contents)
         metadata={"content":file_text,
                 "data": {"name": file.filename,
                         "source":file.url,
                         "kind":"file",
                         "id": file.id}
                     }
-        return self.process_data(metadata=metadata)
+        return self.process_data(metadata=metadata, embed_urls=embed_urls)
 
     def _load_pdf_file(self, file: File) -> list[Document]:
         """Loads given pdf file by page"""

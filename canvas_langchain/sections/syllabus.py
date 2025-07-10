@@ -14,6 +14,7 @@ class SyllabusLoader(BaseSectionLoader):
         if syllabus_body:
             try:
                 syllabus_text = self.parse_html(syllabus_body)
+
                 syllabus_url = urljoin(self.course_api, 'assignments/syllabus')
 
                 metadata={"content": syllabus_text,
@@ -21,7 +22,7 @@ class SyllabusLoader(BaseSectionLoader):
                                 "source": syllabus_url,
                                 "kind": "syllabus"}
                             }
-                return self.process_data(metadata=metadata)
+                return self.process_data(metadata=metadata, embed_urls=embed_urls)
 
             except AttributeError as err:
                 self.logger.logStatement(message=f"Attribute error loading syllabus: {err}", level="WARNING")

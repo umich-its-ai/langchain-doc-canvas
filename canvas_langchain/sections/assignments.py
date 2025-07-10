@@ -28,6 +28,7 @@ class AssignmentLoader(BaseSectionLoader):
     def _load_item(self, assignment: Assignment, description: str | None) -> list[Document]:
         """Load and format one assignment"""
         assignment_description = ""
+        embed_urls = []
         self.logger.logStatement(message=f"Loading assignment: {assignment.name}", level="DEBUG")
 
         # Custom description from locked module
@@ -35,7 +36,7 @@ class AssignmentLoader(BaseSectionLoader):
             assignment_description = description
 
         elif assignment.description:
-            assignment_description = self.parse_html(assignment.description)
+            assignment_description, embed_urls = self.parse_html(assignment.description)
                                                               
         assignment_content = (
             f"Name: {assignment.name}\n"
@@ -51,7 +52,7 @@ class AssignmentLoader(BaseSectionLoader):
                            "id": assignment.id}
                     }
 
-        return self.process_data(metadata=metadata)
+        return self.process_data(metadata=metadata, embed_urls=embed_urls)
 
     def load_from_module(self, 
                          item:Assignment, 
