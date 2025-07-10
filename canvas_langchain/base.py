@@ -12,7 +12,6 @@ class BaseSectionLoaderVars:
     canvas : Canvas
     course: Course
     indexed_items: set
-    mivideo_loader: int
     logger: Logger
 
 
@@ -22,7 +21,6 @@ class BaseSectionLoader:
         self.canvas = baseSectionVars.canvas
         self.course = baseSectionVars.course
         self.indexed_items = baseSectionVars.indexed_items
-        self.mivideo_loader = baseSectionVars.mivideo_loader
         self.logger = baseSectionVars.logger
 
 

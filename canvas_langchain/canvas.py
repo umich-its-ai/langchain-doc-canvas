@@ -3,7 +3,7 @@ from canvasapi import Canvas
 from urllib.parse import urljoin
 from langchain.document_loaders.base import BaseLoader
 from langchain.docstore.document import Document
-from canvasapi.exceptions import CanvasException
+from canvasapi.exceptions import CanvasException, Forbidden
 from langchain_community.document_loaders import UnstructuredURLLoader
 from pydantic import BaseModel
 
@@ -15,6 +15,10 @@ from canvas_langchain.sections.files import FileLoader
 from canvas_langchain.sections.pages import PageLoader
 from canvas_langchain.sections.syllabus import SyllabusLoader
 from canvas_langchain.base import BaseSectionLoaderVars
+
+class UnpublishedCourseException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 # Prevents conflicts with other classes in UMGPT - Happy to refactor as needed
 class LogStatement(BaseModel):
@@ -34,18 +38,24 @@ class CanvasLoader(BaseLoader):
                  api_key: str,
                  course_id: int, 
                  index_external_urls: bool=False):
+        self.logger = Logger()
         self.index_external_urls = index_external_urls
 
         self.canvas = Canvas(api_url, api_key)
-        self.course = self.canvas.get_course(course_id,
-                                             include=['syllabus_body'])
+        try:
+            self.course = self.canvas.get_course(course_id, include=[ "syllabus_body" ])
+        except Forbidden:
+            exception_message = (
+                "User forbidden from accessing Canvas course. " 
+                "Please check user permissions and course availability."
+            )
+            raise UnpublishedCourseException(message=exception_message)
+
         self.course_api = urljoin(api_url, f'/courses/{self.course.id}/')
 
         self.docs = []
         self.indexed_items = set()
         self.invalid_files = [] 
-
-        self.logger = Logger()
 
         # content loaders
         self.baseSectionVars = BaseSectionLoaderVars(self.canvas, 
