@@ -57,6 +57,7 @@ class BaseSectionLoader(ABC):
         """Extracts text and a list of embedded urls from HTML content"""
         bs = BeautifulSoup(html, "lxml")
         doc_text = bs.text.strip()
+        # Urls will be embedded in iframe tags
         return doc_text
 
     def process_data(self, metadata: dict) -> list[Document]:
