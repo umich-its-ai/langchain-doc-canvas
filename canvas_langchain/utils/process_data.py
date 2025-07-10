@@ -1,4 +1,4 @@
-"""Utility functions to load and format embedded urls, extract module metadata"""
+"""Utility functions to load and extract module metadata"""
 from datetime import datetime, timezone
 from typing import Tuple
 
