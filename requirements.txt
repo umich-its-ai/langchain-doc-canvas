@@ -13,3 +13,6 @@ openpyxl
 xlrd
 markdown
 pytz
+KalturaApiClient==21.18.0
+# Egg name not required, but recommended to avoid pip conflicts.
+git+https://github.com/tl-its-umich-edu/langchain_kaltura@2025.03.01#egg=LangChainKaltura
