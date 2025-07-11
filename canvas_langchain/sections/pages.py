@@ -4,8 +4,7 @@ from canvasapi.exceptions import CanvasException
 from langchain.docstore.document import Document
 
 from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
-from canvasapi.paginated_list import PaginatedList
-from canvasapi.page.Page import Page
+from canvasapi.page import Page
 
 class PageLoader(BaseSectionLoader):
     def __init__(self, BaseSectionVars: BaseSectionLoaderVars, course_api):

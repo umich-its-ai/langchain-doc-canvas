@@ -5,7 +5,7 @@ from PyPDF2 import errors
 from typing import List
 from urllib.parse import urljoin
 from canvas_langchain.base import BaseSectionLoaderVars
-from canvasapi.file.File import File
+from canvasapi.file import File
 
 from canvas_langchain.base import BaseSectionLoader
 from canvasapi.paginated_list import PaginatedList

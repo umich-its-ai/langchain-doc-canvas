@@ -2,6 +2,7 @@ from typing import List, Dict
 from datetime import datetime, timezone
 from typing import Tuple
 from canvasapi.exceptions import CanvasException
+from canvasapi.module import ModuleItem
 from langchain_community.document_loaders import UnstructuredURLLoader
 from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from langchain.docstore.document import Document
@@ -58,7 +59,7 @@ class ModuleLoader(BaseSectionLoader):
 
         return locked, formatted_datetime
 
-    def _load_external_url(self, item) -> List[Document]:
+    def _load_external_url(self, item: ModuleItem) -> List[Document]:
         """Loads external URL from module item"""
         self.logger.logStatement(message=f"Loading external url {item.external_url} from module.", 
                                  level="DEBUG")

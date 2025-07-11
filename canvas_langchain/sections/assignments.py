@@ -1,5 +1,5 @@
 from typing import List
-from canvasapi.assignment.Assignment import Assignment
+from canvasapi.assignment import Assignment
 from canvasapi.exceptions import CanvasException
 from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from langchain.docstore.document import Document
