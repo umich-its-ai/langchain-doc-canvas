@@ -34,8 +34,7 @@ class FileLoader(BaseSectionLoader):
             "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx"
         }
 
-
-    def load_files(self) -> List[Document]:
+    def load_section(self) -> List[Document]:
         """Loads and formats all files from Canvas course"""
         self.logger.logStatement(message='Loading files...\n', level="INFO")
 
@@ -50,8 +49,7 @@ class FileLoader(BaseSectionLoader):
                                      level="WARNING")
         return file_documents
     
-
-    def load_file(self, file: PaginatedList) -> List[Document]:
+    def _load_item(self, file: PaginatedList) -> List[Document]:
         """Loads given file based on extension"""
         if f"File:{file.id}" not in self.indexed_items:
             self.indexed_items.add(f"File:{file.id}")
@@ -80,6 +78,12 @@ class FileLoader(BaseSectionLoader):
 
         return []
 
+    def load_from_module(self, item, module_docs):
+        """Loads file from module item"""
+        self.logger.logStatement(message=f"Loading file {item.content_id} from module.", 
+                                 level="DEBUG")
+        file = self.course.get_file(item.content_id)
+        module_docs.extend(self.file_loader._load_item(file))
 
     def _load_rtf_or_text_file(self, file: PaginatedList) -> List[Document]:
         """Loads and formats text and rtf file data"""
@@ -90,7 +94,6 @@ class FileLoader(BaseSectionLoader):
                                         "kind": "file",
                                         "file_id": file.id })
         return [text_document]
-
 
     def _load_html_file(self, file: PaginatedList) -> List[Document]:
         """Loads and formats html file data"""
@@ -103,7 +106,6 @@ class FileLoader(BaseSectionLoader):
                         "id": file.id}
                     }
         return self.process_data(metadata=metadata)
-
 
     def _load_pdf_file(self, file: PaginatedList) -> List[Document]:
         """Loads given pdf file by page"""
@@ -120,7 +122,6 @@ class FileLoader(BaseSectionLoader):
                                               "page": i+1}
                                     )
                 docs.append(pdf_page)
-
         except errors.FileNotDecryptedError:
             self.logger.logStatement(message=f"Error: pdf {file.filename} is encrypted.",
                                      level="WARNING")
@@ -128,7 +129,6 @@ class FileLoader(BaseSectionLoader):
             self.logger.logStatement(message=f"Error loading pdf {file.filename}. Err: {err}",
                                      level="WARNING")
         return docs
-
 
     def _load_file_general(self, file: PaginatedList, file_type: str) -> List[Document]:
         """Loads docx, excel, pptx, and md files"""

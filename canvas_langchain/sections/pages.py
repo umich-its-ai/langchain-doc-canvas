@@ -11,7 +11,7 @@ class PageLoader(BaseSectionLoader):
         super().__init__(BaseSectionVars)
         self.course_api = course_api
 
-    def load_pages(self) -> List[Document]:
+    def load_section(self) -> List[Document]:
         self.logger.logStatement(message='Loading pages...\n', level="INFO")
         page_documents = []
 
@@ -26,8 +26,7 @@ class PageLoader(BaseSectionLoader):
         
         return page_documents
 
-
-    def load_page(self, page: PaginatedList) -> List[Document]:
+    def _load_item(self, page: PaginatedList) -> List[Document]:
         """Loads and formats a single page and its embedded URL(s) content """
         page_docs = []
         if not page.locked_for_user and page.body and f"Page:{page.page_id}" not in self.indexed_items:
@@ -43,5 +42,10 @@ class PageLoader(BaseSectionLoader):
                                 "kind": "page",
                                 "id": page.page_id}
                     }
-            page_docs = self.process_data(metadata=metadata)
-        return page_docs
+        return self.process_data(metadata=metadata)
+
+    def load_from_module(self, item, module_docs):
+        self.logger.logStatement(message=f"Loading page {item.page_url} from module.", 
+                                    level="DEBUG")
+        page = self.course.get_page(item.page_url)
+        module_docs.extend(self.page_loader._load_item(page))

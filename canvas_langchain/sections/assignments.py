@@ -1,11 +1,14 @@
 from typing import List
 from canvasapi.paginated_list import PaginatedList
 from canvasapi.exceptions import CanvasException
-from canvas_langchain.base import BaseSectionLoader
+from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from langchain.docstore.document import Document
 
 class AssignmentLoader(BaseSectionLoader):
-    def load(self) -> List[Document]:
+    def __init__(self, baseSectionVars: BaseSectionLoaderVars):
+        super().__init__(baseSectionVars)
+
+    def load_section(self) -> List[Document]:
         """Load all assignments for a Canvas course"""
         self.logger.logStatement(message='Loading assignments...\n', level="INFO")
 
@@ -23,9 +26,8 @@ class AssignmentLoader(BaseSectionLoader):
 
         return assignment_documents
 
-
-    def load_assignment(self, assignment: PaginatedList, description: str | None) -> List[Document]:
-        """Load and format given assignment"""
+    def _load_item(self, assignment: PaginatedList, description: str | None) -> List[Document]:
+        """Load and format one assignment"""
         assignment_description = ""
         self.logger.logStatement(message=f"Loading assignment: {assignment.name}", level="DEBUG")
 
@@ -51,3 +53,11 @@ class AssignmentLoader(BaseSectionLoader):
                     }
 
         return self.process_data(metadata=metadata)
+
+    def load_from_module(self, item, module_docs, locked: bool = False, formatted_datetime: str | None = None):
+        self.logger.logStatement(message=f"Loading assignment {item.content_id} from module.", level="DEBUG")
+        assignment = self.course.get_assignment(item.content_id)
+        description=None
+        if locked and formatted_datetime:
+            description=f"Assignment is part of module {module.name}, which is locked until {formatted_datetime}"
+        module_docs.extend(self.assignment_loader._load_assignment(assignment, description))

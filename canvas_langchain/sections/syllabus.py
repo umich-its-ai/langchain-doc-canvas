@@ -5,7 +5,7 @@ from canvas_langchain.base import BaseSectionLoader
 from langchain.docstore.document import Document
 
 class SyllabusLoader(BaseSectionLoader):
-    def load(self) -> List[Document]:
+    def load_section(self) -> List[Document]:
         self.logger.logStatement(message='Loading syllabus...\n', level="INFO")
         if self.course.syllabus_body:
             try:
