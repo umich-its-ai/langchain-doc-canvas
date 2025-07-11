@@ -4,7 +4,7 @@ from canvasapi.exceptions import CanvasException
 from langchain.docstore.document import Document
 
 from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
-from canvasapi.paginated_list import PaginatedList
+from canvasapi.page import Page
 
 class PageLoader(BaseSectionLoader):
     def __init__(self, BaseSectionVars: BaseSectionLoaderVars, course_api):
@@ -19,16 +19,15 @@ class PageLoader(BaseSectionLoader):
             pages = self.course.get_pages(published=True,
                                             include=['body'])
             for page in pages:
-                page_documents.extend(self.load_page(page))
+                page_documents.extend(self._load_item(page))
 
         except CanvasException:
             self.logger.logStatement(message=f"Canvas exception loading pages", level="WARNING")
         
         return page_documents
 
-    def _load_item(self, page: PaginatedList) -> List[Document]:
+    def _load_item(self, page: Page) -> List[Document]:
         """Loads and formats a single page and its embedded URL(s) content """
-        page_docs = []
         if not page.locked_for_user and page.body and f"Page:{page.page_id}" not in self.indexed_items:
             self.logger.logStatement(message=f"Loading page: {page.title}", level="DEBUG")
             self.indexed_items.add(f"Page:{page.page_id}")                      
@@ -38,14 +37,15 @@ class PageLoader(BaseSectionLoader):
             page_url = urljoin(self.course_api, f'pages/{page.url}')
             metadata={"content": page_body,
                     "data": {"filename": page.title,
-                                "source": page_url,
-                                "kind": "page",
-                                "id": page.page_id}
+                             "source": page_url,
+                             "kind": "page",
+                             "id": page.page_id}
                     }
         return self.process_data(metadata=metadata)
 
-    def load_from_module(self, item, module_docs):
+    def load_from_module(self, item: Page) -> List[Document]:
+        """Loads page from module item"""
         self.logger.logStatement(message=f"Loading page {item.page_url} from module.", 
                                     level="DEBUG")
         page = self.course.get_page(item.page_url)
-        module_docs.extend(self.page_loader._load_item(page))
+        return self._load_item(page)

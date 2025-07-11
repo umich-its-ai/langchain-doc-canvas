@@ -2,6 +2,7 @@ from typing import List, Dict
 from datetime import datetime, timezone
 from typing import Tuple
 from canvasapi.exceptions import CanvasException
+from canvasapi.module import ModuleItem
 from langchain_community.document_loaders import UnstructuredURLLoader
 from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from langchain.docstore.document import Document
@@ -26,15 +27,19 @@ class ModuleLoader(BaseSectionLoader):
         return module_documents
     
     def _load_item(self, module) -> List[Document]:
+        """Loads content from a single module"""
         locked, formatted_datetime = self._get_module_metadata(module.unlock_at)
         module_items = module.get_module_items()
         module_docs = []
         try:
             for item in module_items:
                 if (item.type == "Page" and not locked) or (item.type == "File"):
-                    module_docs.extend(self.loaders[item.type].load_from_module(item, module_docs))
+                    module_docs.extend(self.loaders[f"{item.type}s"].load_from_module(item=item))
                 elif item.type == "Assignment":
-                    module_docs.extend(self.loaders[item.type].load_from_module(item, module_docs, locked, formatted_datetime))
+                    module_docs.extend(self.loaders["Assignments"].load_from_module(item=item,
+                                                                                    module_name=module.name,
+                                                                                    locked=locked,
+                                                                                    formatted_datetime=formatted_datetime))
                 elif item.type == "ExternalUrl":
                     module_docs.extend(self._load_external_url(item))
             return module_docs
@@ -55,7 +60,8 @@ class ModuleLoader(BaseSectionLoader):
 
         return locked, formatted_datetime
 
-    def _load_external_url(self, item) -> List[Document]:
+    def _load_external_url(self, item: ModuleItem) -> List[Document]:
+        """Loads external URL from module item"""
         self.logger.logStatement(message=f"Loading external url {item.external_url} from module.", 
                                  level="DEBUG")
         self.indexed_items.add(f"ExtUrl:{item.external_url}")

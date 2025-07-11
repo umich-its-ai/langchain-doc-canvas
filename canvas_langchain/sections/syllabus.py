@@ -1,10 +1,13 @@
 from typing import List
 from urllib.parse import urljoin
 
-from canvas_langchain.base import BaseSectionLoader
+from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from langchain.docstore.document import Document
 
 class SyllabusLoader(BaseSectionLoader):
+    def __init__(self, BaseSectionVars: BaseSectionLoaderVars):
+        super().__init__(BaseSectionVars)
+
     def load_section(self) -> List[Document]:
         self.logger.logStatement(message='Loading syllabus...\n', level="INFO")
         if self.course.syllabus_body:

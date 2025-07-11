@@ -1,5 +1,5 @@
 from typing import List
-from canvasapi.paginated_list import PaginatedList
+from canvasapi.assignment import Assignment
 from canvasapi.exceptions import CanvasException
 from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from langchain.docstore.document import Document
@@ -18,7 +18,7 @@ class AssignmentLoader(BaseSectionLoader):
             for assignment in assignments:
                 if f"Assignment:{assignment.id}" not in self.indexed_items:
                     self.indexed_items.add(f"Assignment:{assignment.id}")
-                    assignment_documents.extend(self.load_assignment(assignment, None))
+                    assignment_documents.extend(self._load_item(assignment, None))
 
         except CanvasException as error:
             self.logger.logStatement(message=f"Canvas exception loading assignments {error}",
@@ -26,7 +26,7 @@ class AssignmentLoader(BaseSectionLoader):
 
         return assignment_documents
 
-    def _load_item(self, assignment: PaginatedList, description: str | None) -> List[Document]:
+    def _load_item(self, assignment: Assignment, description: str | None) -> List[Document]:
         """Load and format one assignment"""
         assignment_description = ""
         self.logger.logStatement(message=f"Loading assignment: {assignment.name}", level="DEBUG")
@@ -54,10 +54,15 @@ class AssignmentLoader(BaseSectionLoader):
 
         return self.process_data(metadata=metadata)
 
-    def load_from_module(self, item, module_docs, locked: bool = False, formatted_datetime: str | None = None):
+    def load_from_module(self, 
+                         item:Assignment, 
+                         module_name: str, 
+                         locked: bool, 
+                         formatted_datetime: str | None) -> List[Document]:
+        """Loads assignment from module item"""
         self.logger.logStatement(message=f"Loading assignment {item.content_id} from module.", level="DEBUG")
         assignment = self.course.get_assignment(item.content_id)
         description=None
         if locked and formatted_datetime:
-            description=f"Assignment is part of module {module.name}, which is locked until {formatted_datetime}"
-        module_docs.extend(self.assignment_loader._load_assignment(assignment, description))
+            description=f"Assignment is part of module {module_name}, which is locked until {formatted_datetime}"
+        return self._load_item(assignment, description)
