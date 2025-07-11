@@ -62,7 +62,6 @@ class CanvasLoader(BaseLoader):
                                                      self.logger)
 
 
-    
     def _get_loaders(self) -> dict[str, BaseSectionLoader]:
         """Returns a dictionary of section loaders"""
         file_loader = FileLoader(self.baseSectionVars, self.course_api, self.invalid_files)
@@ -70,20 +69,19 @@ class CanvasLoader(BaseLoader):
         page_loader = PageLoader(self.baseSectionVars, self.course_api)
         
         module_loader = ModuleLoader(self.baseSectionVars, {
-            "File": file_loader,
-            "Assignment": assignment_loader,
-            "Page": page_loader,
+            "Files": file_loader,
+            "Assignments": assignment_loader,
+            "Pages": page_loader,
         })
         
         return {
-            "File": file_loader,
-            "Assignment": assignment_loader,
-            "Page": page_loader,
-            "Module": module_loader,
+            "Files": file_loader,
+            "Assignments": assignment_loader,
+            "Pages": page_loader,
+            "Modules": module_loader,
             "Syllabus": SyllabusLoader(self.baseSectionVars),
-            "Announcement": AnnouncementLoader(self.baseSectionVars),
+            "Announcements": AnnouncementLoader(self.baseSectionVars),
         }
-
 
     def load(self) -> List[Document]:
         """Loads all available content from Canvas course"""

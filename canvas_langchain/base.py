@@ -33,6 +33,13 @@ class BaseSectionLoader(ABC):
         """Load a single section item and return a list of Document objects"""
         raise NotImplementedError("This optional method should be implemented in subclass")
 
+    def load_from_module(self, item: any, 
+                         module_name: str | None, 
+                         locked: bool | None, 
+                         formatted_datetime: str | None) -> List[Document]:
+        """Load a section item from a module"""
+        raise NotImplementedError("This optional method should be implemented in subclass")
+
     def parse_html(self, html):
         """Extracts text and a list of embedded urls from HTML content"""
         bs = BeautifulSoup(html, 'lxml')

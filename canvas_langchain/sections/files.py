@@ -5,6 +5,7 @@ from PyPDF2 import errors
 from typing import List
 from urllib.parse import urljoin
 from canvas_langchain.base import BaseSectionLoaderVars
+from canvasapi.file.File import File
 
 from canvas_langchain.base import BaseSectionLoader
 from canvasapi.paginated_list import PaginatedList
@@ -42,14 +43,14 @@ class FileLoader(BaseSectionLoader):
         try:
             files = self.course.get_files()
             for file in files:
-                file_documents.extend(self.load_file(file))
+                file_documents.extend(self._load_item(file))
 
         except CanvasException as error:
             self.logger.logStatement(message=f"Canvas exception loading files {error}",
                                      level="WARNING")
         return file_documents
     
-    def _load_item(self, file: PaginatedList) -> List[Document]:
+    def _load_item(self, file: File) -> List[Document]:
         """Loads given file based on extension"""
         if f"File:{file.id}" not in self.indexed_items:
             self.indexed_items.add(f"File:{file.id}")
@@ -78,12 +79,12 @@ class FileLoader(BaseSectionLoader):
 
         return []
 
-    def load_from_module(self, item, module_docs):
+    def load_from_module(self, item: File):
         """Loads file from module item"""
         self.logger.logStatement(message=f"Loading file {item.content_id} from module.", 
                                  level="DEBUG")
         file = self.course.get_file(item.content_id)
-        module_docs.extend(self.file_loader._load_item(file))
+        return self._load_item(file)
 
     def _load_rtf_or_text_file(self, file: PaginatedList) -> List[Document]:
         """Loads and formats text and rtf file data"""

@@ -1,8 +1,8 @@
 from datetime import date
 from typing import List
 from canvasapi.exceptions import CanvasException
-from canvasapi.paginated_list import PaginatedList
 from langchain.docstore.document import Document
+from canvasapi.announcement.Announcement import Announcement
 from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 
 class AnnouncementLoader(BaseSectionLoader):
@@ -20,7 +20,7 @@ class AnnouncementLoader(BaseSectionLoader):
                                                             end_date=date.today().isoformat())
 
             for announcement in announcements:
-                announcement_documents.extend(self._load_one(announcement=announcement))
+                announcement_documents.extend(self._load_item(announcement=announcement))
 
         except CanvasException as error:
             self.logger.logStatement(message=f"Canvas exception loading announcements {error}",
@@ -28,7 +28,7 @@ class AnnouncementLoader(BaseSectionLoader):
 
         return announcement_documents
 
-    def _load_item(self, announcement: PaginatedList) -> List[Document]:
+    def _load_item(self, announcement: Announcement) -> List[Document]:
         """Loads a single announcement"""
         self.logger.logStatement(message=f"Loading announcement: {announcement.title}", level="DEBUG")
         
