@@ -89,9 +89,6 @@ class CanvasLoader(BaseLoader):
         """Loads all available content from Canvas course"""
         self.logger.logStatement(message="Starting document loading process. \n", level="INFO")
         try:
-            # load syllabus
-            self.docs.extend(self.syllabus_loader.load())
-
             # get available course navigation tabs
             available_tabs = [tab.label for tab in self.course.get_tabs()]
             loaders = self._get_loaders()
