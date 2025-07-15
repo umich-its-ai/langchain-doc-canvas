@@ -1,4 +1,3 @@
-from typing import List, Dict
 from datetime import datetime, timezone
 from typing import Tuple
 from canvasapi.exceptions import CanvasException
@@ -8,11 +7,12 @@ from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from langchain.docstore.document import Document
 
 class ModuleLoader(BaseSectionLoader):
-    def __init__(self, BaseSectionVars: BaseSectionLoaderVars, loaders: Dict[str, BaseSectionLoader]):
-        super().__init__(BaseSectionVars)
+    def __init__(self, baseSectionVars: BaseSectionLoaderVars, index_external_urls: bool, loaders: dict[str, BaseSectionLoader]):
+        super().__init__(baseSectionVars)
         self.loaders = loaders
+        self.index_external_urls = index_external_urls
 
-    def load_section(self) -> List[Document]:
+    def load_section(self) -> list[Document]:
         """Loads content from all unlocked modules in course"""
         self.logger.logStatement(message='Loading modules...\n', level="INFO")
         module_documents = []
@@ -26,7 +26,7 @@ class ModuleLoader(BaseSectionLoader):
 
         return module_documents
     
-    def _load_item(self, module) -> List[Document]:
+    def _load_item(self, module: ModuleItem) -> list[Document]:
         """Loads content from a single module"""
         locked, formatted_datetime = self._get_module_metadata(module.unlock_at)
         module_items = module.get_module_items()
@@ -40,7 +40,7 @@ class ModuleLoader(BaseSectionLoader):
                                                                                     module_name=module.name,
                                                                                     locked=locked,
                                                                                     formatted_datetime=formatted_datetime))
-                elif item.type == "ExternalUrl":
+                elif item.type == "ExternalUrl" and self.index_external_urls:
                     module_docs.extend(self._load_external_url(item))
             return module_docs
         except CanvasException as ex:
@@ -60,10 +60,14 @@ class ModuleLoader(BaseSectionLoader):
 
         return locked, formatted_datetime
 
-    def _load_external_url(self, item: ModuleItem) -> List[Document]:
+    def _load_external_url(self, item: ModuleItem) -> list[Document]:
         """Loads external URL from module item"""
-        self.logger.logStatement(message=f"Loading external url {item.external_url} from module.", 
-                                 level="DEBUG")
-        self.indexed_items.add(f"ExtUrl:{item.external_url}")
-        url_loader = UnstructuredURLLoader(urls = [item.external_url])
-        return url_loader.load()
+        if item.external_url and f"ExtUrl:{item.external_url}" not in self.indexed_items:
+            self.logger.logStatement(message=f"Loading external url {item.external_url} from module.", 
+                                    level="DEBUG")
+            url_loader = UnstructuredURLLoader(urls = [item.external_url])
+            docs = url_loader.load()
+            if docs:
+                self.indexed_items.add(f"ExtUrl:{item.external_url}")
+                return docs
+        return []

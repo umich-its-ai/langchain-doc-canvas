@@ -1,4 +1,3 @@
-from typing import List
 from urllib.parse import urljoin
 from canvasapi.exceptions import CanvasException
 from langchain.docstore.document import Document
@@ -7,11 +6,11 @@ from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from canvasapi.page import Page
 
 class PageLoader(BaseSectionLoader):
-    def __init__(self, BaseSectionVars: BaseSectionLoaderVars, course_api):
-        super().__init__(BaseSectionVars)
+    def __init__(self, baseSectionVars: BaseSectionLoaderVars, course_api: str):
+        super().__init__(baseSectionVars)
         self.course_api = course_api
 
-    def load_section(self) -> List[Document]:
+    def load_section(self) -> list[Document]:
         self.logger.logStatement(message='Loading pages...\n', level="INFO")
         page_documents = []
 
@@ -26,7 +25,7 @@ class PageLoader(BaseSectionLoader):
         
         return page_documents
 
-    def _load_item(self, page: Page) -> List[Document]:
+    def _load_item(self, page: Page) -> list[Document]:
         """Loads and formats a single page and its embedded URL(s) content """
         if not page.locked_for_user and page.body and f"Page:{page.page_id}" not in self.indexed_items:
             self.logger.logStatement(message=f"Loading page: {page.title}", level="DEBUG")
@@ -41,9 +40,10 @@ class PageLoader(BaseSectionLoader):
                              "kind": "page",
                              "id": page.page_id}
                     }
-        return self.process_data(metadata=metadata)
+            return self.process_data(metadata=metadata)
+        return []
 
-    def load_from_module(self, item: Page) -> List[Document]:
+    def load_from_module(self, item: Page) -> list[Document]:
         """Loads page from module item"""
         self.logger.logStatement(message=f"Loading page {item.page_url} from module.", 
                                     level="DEBUG")

@@ -1,4 +1,3 @@
-from typing import List
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -26,6 +25,6 @@ class Logger():
         self.progress.append({"message": message, "level": level})
 
 
-    def _filtered_statements_by_level(self, level: str) -> List:
+    def _filtered_statements_by_level(self, level: str) -> list:
         """Returns statements corresponding to desired output level"""
         return [statement for statement in self.progress if statement.level == level]

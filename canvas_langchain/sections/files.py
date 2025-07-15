@@ -2,13 +2,11 @@ import tempfile
 from io import BytesIO
 from PyPDF2 import PdfReader
 from PyPDF2 import errors
-from typing import List
 from urllib.parse import urljoin
 from canvas_langchain.base import BaseSectionLoaderVars
 from canvasapi.file import File
 
 from canvas_langchain.base import BaseSectionLoader
-from canvasapi.paginated_list import PaginatedList
 from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
 
 from langchain.docstore.document import Document
@@ -22,8 +20,8 @@ from langchain_community.document_loaders import (
 ) 
 
 class FileLoader(BaseSectionLoader):
-    def __init__(self, BaseSectionVars: BaseSectionLoaderVars, course_api, invalid_files):
-        super().__init__(BaseSectionVars)
+    def __init__(self, baseSectionVars: BaseSectionLoaderVars, course_api: str, invalid_files: list[str]):
+        super().__init__(baseSectionVars)
         self.invalid_files = invalid_files
         self.course_api = course_api
         self.type_match = {
@@ -35,7 +33,7 @@ class FileLoader(BaseSectionLoader):
             "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx"
         }
 
-    def load_section(self) -> List[Document]:
+    def load_section(self) -> list[Document]:
         """Loads and formats all files from Canvas course"""
         self.logger.logStatement(message='Loading files...\n', level="INFO")
 
@@ -50,12 +48,12 @@ class FileLoader(BaseSectionLoader):
                                      level="WARNING")
         return file_documents
     
-    def _load_item(self, file: File) -> List[Document]:
+    def _load_item(self, file: File) -> list[Document]:
         """Loads given file based on extension"""
         if f"File:{file.id}" not in self.indexed_items:
             self.indexed_items.add(f"File:{file.id}")
             try:
-                content_type = getattr(file, "content-type")
+                content_type = getattr(file, "content_type")
                 self.logger.logStatement(message=f"Loading file: {file.filename}", level="DEBUG")
 
                 if content_type in ["text/plain", "text/rtf"]:
@@ -86,17 +84,17 @@ class FileLoader(BaseSectionLoader):
         file = self.course.get_file(item.content_id)
         return self._load_item(file)
 
-    def _load_rtf_or_text_file(self, file: PaginatedList) -> List[Document]:
+    def _load_rtf_or_text_file(self, file: File) -> list[Document]:
         """Loads and formats text and rtf file data"""
         file_contents = file.get_contents(binary=False)
         text_document = Document(page_content=file_contents,
                                 metadata={"filename": file.filename, 
                                         "source": file.url, 
                                         "kind": "file",
-                                        "file_id": file.id })
+                                        "id": file.id })
         return [text_document]
 
-    def _load_html_file(self, file: PaginatedList) -> List[Document]:
+    def _load_html_file(self, file: File) -> list[Document]:
         """Loads and formats html file data"""
         file_contents = file.get_contents(binary=False)
         file_text = self.parse_html(html=file_contents)
@@ -108,7 +106,7 @@ class FileLoader(BaseSectionLoader):
                     }
         return self.process_data(metadata=metadata)
 
-    def _load_pdf_file(self, file: PaginatedList) -> List[Document]:
+    def _load_pdf_file(self, file: File) -> list[Document]:
         """Loads given pdf file by page"""
         file_contents = file.get_contents(binary=True)
         docs = []
@@ -131,7 +129,7 @@ class FileLoader(BaseSectionLoader):
                                      level="WARNING")
         return docs
 
-    def _load_file_general(self, file: PaginatedList, file_type: str) -> List[Document]:
+    def _load_file_general(self, file: File, file_type: str) -> list[Document]:
         """Loads docx, excel, pptx, and md files"""
         file_contents = file.get_contents(binary=True)
         docs=[]

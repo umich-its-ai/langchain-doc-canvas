@@ -1,4 +1,4 @@
-from typing import Any, List, Literal
+from typing import Literal
 from canvasapi import Canvas
 from urllib.parse import urljoin
 from langchain.document_loaders.base import BaseLoader
@@ -22,7 +22,7 @@ class UnpublishedCourseException(Exception):
 # Prevents conflicts with other classes in UMGPT - Happy to refactor as needed
 class LogStatement(BaseModel):
     """INFO can be user-facing statements, non-technical and perhaps very high-level"""
-    message: Any
+    message: str
     level: Literal['INFO', 'DEBUG', 'WARNING']
 
     def __json__(self):
@@ -50,9 +50,11 @@ class CanvasLoader(BaseLoader):
             )
             raise UnpublishedCourseException(message=exception_message)
 
-        self.course_api = urljoin(api_url, f'/courses/{self.course.id}/')
+        self.course_api = urljoin(api_url, f'courses/{self.course.id}/')
 
-        self.docs = self.invalid_files = []
+        self.docs = []
+        self.invalid_files = []
+
         self.indexed_items = set()
 
         # content loaders
@@ -64,26 +66,28 @@ class CanvasLoader(BaseLoader):
 
     def _get_loaders(self) -> dict[str, BaseSectionLoader]:
         """Returns a dictionary of section loaders"""
-        file_loader = FileLoader(self.baseSectionVars, self.course_api, self.invalid_files)
-        assignment_loader = AssignmentLoader(self.baseSectionVars)
-        page_loader = PageLoader(self.baseSectionVars, self.course_api)
-        
-        module_loader = ModuleLoader(self.baseSectionVars, {
-            "Files": file_loader,
-            "Assignments": assignment_loader,
-            "Pages": page_loader,
-        })
+        file_loader = FileLoader(baseSectionVars=self.baseSectionVars, course_api=self.course_api, invalid_files=self.invalid_files)
+        assignment_loader = AssignmentLoader(baseSectionVars=self.baseSectionVars)
+        page_loader = PageLoader(baseSectionVars=self.baseSectionVars, course_api=self.course_api)
+
+        module_loader = ModuleLoader(baseSectionVars=self.baseSectionVars,
+                                     index_external_urls=self.index_external_urls,
+                                     loaders={
+                                        "Files": file_loader,
+                                        "Assignments": assignment_loader,
+                                        "Pages": page_loader,
+                                    })
         
         return {
             "Files": file_loader,
             "Assignments": assignment_loader,
             "Pages": page_loader,
             "Modules": module_loader,
-            "Syllabus": SyllabusLoader(self.baseSectionVars),
-            "Announcements": AnnouncementLoader(self.baseSectionVars),
+            "Syllabus": SyllabusLoader(baseSectionVars=self.baseSectionVars, course_api=self.course_api),
+            "Announcements": AnnouncementLoader(baseSectionVars=self.baseSectionVars),
         }
 
-    def load(self) -> List[Document]:
+    def load(self) -> list[Document]:
         """Loads all available content from Canvas course"""
         self.logger.logStatement(message="Starting document loading process. \n", level="INFO")
         try:
@@ -100,7 +104,7 @@ class CanvasLoader(BaseLoader):
         return self.docs
 
 
-    def get_details(self, level='INFO') -> List:
+    def get_details(self, level='INFO') -> list:
         if level == 'INFO':
             return self.logger._filtered_statements_by_level(level=level)
         return self.logger.progress, self.logger.errors

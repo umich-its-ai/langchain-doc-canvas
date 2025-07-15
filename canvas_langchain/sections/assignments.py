@@ -1,4 +1,3 @@
-from typing import List
 from canvasapi.assignment import Assignment
 from canvasapi.exceptions import CanvasException
 from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
@@ -8,7 +7,7 @@ class AssignmentLoader(BaseSectionLoader):
     def __init__(self, baseSectionVars: BaseSectionLoaderVars):
         super().__init__(baseSectionVars)
 
-    def load_section(self) -> List[Document]:
+    def load_section(self) -> list[Document]:
         """Load all assignments for a Canvas course"""
         self.logger.logStatement(message='Loading assignments...\n', level="INFO")
 
@@ -26,7 +25,7 @@ class AssignmentLoader(BaseSectionLoader):
 
         return assignment_documents
 
-    def _load_item(self, assignment: Assignment, description: str | None) -> List[Document]:
+    def _load_item(self, assignment: Assignment, description: str | None) -> list[Document]:
         """Load and format one assignment"""
         assignment_description = ""
         self.logger.logStatement(message=f"Loading assignment: {assignment.name}", level="DEBUG")
@@ -58,7 +57,7 @@ class AssignmentLoader(BaseSectionLoader):
                          item:Assignment, 
                          module_name: str, 
                          locked: bool, 
-                         formatted_datetime: str | None) -> List[Document]:
+                         formatted_datetime: str | None) -> list[Document]:
         """Loads assignment from module item"""
         self.logger.logStatement(message=f"Loading assignment {item.content_id} from module.", level="DEBUG")
         assignment = self.course.get_assignment(item.content_id)

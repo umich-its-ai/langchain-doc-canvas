@@ -1,12 +1,19 @@
-from typing import List, Dict
 from dataclasses import dataclass
 from bs4 import BeautifulSoup
 from abc import ABC, abstractmethod
+from typing import Any
 
 from canvasapi import Canvas
 from canvasapi.course import Course
 from langchain.docstore.document import Document
 from canvas_langchain.utils.logging import Logger
+
+from canvasapi.discussion_topic import DiscussionTopic
+from canvasapi.assignment import Assignment
+from canvasapi.file import File
+from canvasapi.module import ModuleItem
+from canvasapi.page import Page
+
 
 @dataclass
 class BaseSectionLoaderVars:
@@ -25,28 +32,28 @@ class BaseSectionLoader(ABC):
         self.logger = baseSectionVars.logger
 
     @abstractmethod
-    def load_section(self) -> List[Document]:
+    def load_section(self) -> list[Document]:
         """Load section data and return a list of Document objects"""
         pass
 
-    def _load_item(self, item) -> List[Document]:
+    def _load_item(self, item: File | Assignment | Page | DiscussionTopic | ModuleItem) -> list[Document]:
         """Load a single section item and return a list of Document objects"""
         raise NotImplementedError("This optional method should be implemented in subclass")
 
-    def load_from_module(self, item: any, 
+    def load_from_module(self, item: File | Assignment | Page, 
                          module_name: str | None, 
                          locked: bool | None, 
-                         formatted_datetime: str | None) -> List[Document]:
+                         formatted_datetime: str | None) -> list[Document]:
         """Load a section item from a module"""
         raise NotImplementedError("This optional method should be implemented in subclass")
 
-    def parse_html(self, html):
+    def parse_html(self, html: str) -> str:
         """Extracts text and a list of embedded urls from HTML content"""
         bs = BeautifulSoup(html, 'lxml')
         doc_text = bs.text.strip()
         return doc_text
     
-    def process_data(self, metadata: Dict) -> List[Document]:
+    def process_data(self, metadata: dict) -> list[Document]:
         """Process metadata on a single 'page'"""
         document_arr = []    
         if metadata['content']:

@@ -1,5 +1,4 @@
 from datetime import date
-from typing import List
 from canvasapi.exceptions import CanvasException
 from langchain.docstore.document import Document
 from canvasapi.discussion_topic import DiscussionTopic
@@ -9,7 +8,7 @@ class AnnouncementLoader(BaseSectionLoader):
     def __init__(self, baseSectionVars: BaseSectionLoaderVars):
         super().__init__(baseSectionVars)
 
-    def load_section(self) -> List[Document]:
+    def load_section(self) -> list[Document]:
         """Load all announcements for a Canvas course"""
         self.logger.logStatement(message='Loading announcements...\n', level="INFO")
 
@@ -28,7 +27,7 @@ class AnnouncementLoader(BaseSectionLoader):
 
         return announcement_documents
 
-    def _load_item(self, announcement: DiscussionTopic) -> List[Document]:
+    def _load_item(self, announcement: DiscussionTopic) -> list[Document]:
         """Loads a single announcement"""
         self.logger.logStatement(message=f"Loading announcement: {announcement.title}", level="DEBUG")
         
