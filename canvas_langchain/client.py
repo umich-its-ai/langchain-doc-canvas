@@ -39,7 +39,7 @@ class CanvasClient():
         return [tab.label for tab in self._course.get_tabs()]
 
     def get_loaders(self, index_external_urls: bool, logger: Logger) -> dict[str, BaseSectionLoader]:
-        base_vars = BaseSectionLoaderVars(canvas_content_extractor=self.content_extractor, indexed_items=set(), logger=logger)
+        base_vars = BaseSectionLoaderVars(canvas_client_extractor=self.content_extractor, indexed_items=set(), logger=logger)
         course_api = urljoin(self.api_url, f'courses/{self._course.id}/')
         
         assignment_loader = AssignmentLoader(baseSectionVars=base_vars)
