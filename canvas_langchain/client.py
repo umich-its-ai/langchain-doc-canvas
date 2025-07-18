@@ -19,10 +19,10 @@ class UnpublishedCourseException(Exception):
         super().__init__(message)
 
 class CanvasClient():
-    def __init__(self, api_url: str, api_key: str):
+    def __init__(self, api_url: str, api_key: str, course_id: int):
         self._canvas = Canvas(api_url, api_key)
         self.api_url = api_url
-        self._course = self.get_course()
+        self._course = self.get_course(course_id)
         self.content_extractor = CanvasClientGetters(self._canvas, self._course)
 
     def get_course(self, course_id: int) -> Course:

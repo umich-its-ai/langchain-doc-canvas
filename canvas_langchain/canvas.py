@@ -25,7 +25,7 @@ class CanvasLoader(BaseLoader):
                  course_id: int, 
                  index_external_urls: bool=False):
         self.logger = Logger()
-        self.canvas_client = CanvasClient(api_url, api_key)
+        self.canvas_client = CanvasClient(api_url, api_key, course_id)
         self.index_external_urls = index_external_urls
 
     def load(self) -> list[Document]:
