@@ -11,7 +11,7 @@ class CanvasClientGetters():
         self._course = course
 
     def get_announcements(self) -> PaginatedList:
-        return self.canvas.get_announcements(context_codes=[self._course],
+        return self._canvas.get_announcements(context_codes=[self._course],
                                                             start_date="2016-01-01",
                                                             end_date=date.today().isoformat())
     
