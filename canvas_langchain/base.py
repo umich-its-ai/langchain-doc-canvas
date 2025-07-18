@@ -10,7 +10,7 @@ from canvasapi.assignment import Assignment
 from canvasapi.file import File
 from canvasapi.module import ModuleItem
 from canvasapi.page import Page
-from canvas_langchain.client import CanvasClientGetters
+from canvas_langchain.client_getters import CanvasClientGetters
 
 
 @dataclass
