@@ -26,8 +26,6 @@ class CanvasLoader(BaseLoader):
                  index_external_urls: bool=False):
         self.logger = Logger()
         self.canvas_client = CanvasClient(api_url, api_key)
-        self.course = self.canvas_client.get_course(course_id)
-
         self.index_external_urls = index_external_urls
 
     def load(self) -> list[Document]:
@@ -35,9 +33,8 @@ class CanvasLoader(BaseLoader):
         self.logger.logStatement(message="Starting document loading process. \n", level="INFO")
         docs = []
         try:
-            available_tabs = self.canvas_client.get_available_tabs(self.course)
-            loaders = self.canvas_client.get_loaders(course=self.course, 
-                                                     index_external_urls=self.index_external_urls, 
+            available_tabs = self.canvas_client.get_available_tabs()
+            loaders = self.canvas_client.get_loaders(index_external_urls=self.index_external_urls, 
                                                      logger=self.logger)
 
             for tab_name in available_tabs:

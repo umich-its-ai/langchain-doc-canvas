@@ -14,9 +14,7 @@ class AnnouncementLoader(BaseSectionLoader):
 
         announcement_documents = []
         try:
-            announcements = self.canvas.get_announcements(context_codes=[self.course],
-                                                            start_date="2016-01-01",
-                                                            end_date=date.today().isoformat())
+            announcements = self.canvas_client.get_announcements()
 
             for announcement in announcements:
                 announcement_documents.extend(self._load_item(announcement=announcement))

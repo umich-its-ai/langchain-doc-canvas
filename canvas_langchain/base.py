@@ -1,10 +1,7 @@
 from dataclasses import dataclass
 from bs4 import BeautifulSoup
 from abc import ABC, abstractmethod
-from typing import Any
 
-from canvasapi import Canvas
-from canvasapi.course import Course
 from langchain.docstore.document import Document
 from canvas_langchain.utils.logging import Logger
 
@@ -13,12 +10,12 @@ from canvasapi.assignment import Assignment
 from canvasapi.file import File
 from canvasapi.module import ModuleItem
 from canvasapi.page import Page
+from canvas_langchain.client import CanvasClient
 
 
 @dataclass
 class BaseSectionLoaderVars:
-    canvas : Canvas
-    course: Course
+    canvas_client: CanvasClient
     indexed_items: set
     logger: Logger
 
@@ -26,8 +23,7 @@ class BaseSectionLoaderVars:
 class BaseSectionLoader(ABC):
     """Abstract base class for loading sections of a Canvas course"""
     def __init__(self, baseSectionVars: BaseSectionLoaderVars):
-        self.canvas = baseSectionVars.canvas
-        self.course = baseSectionVars.course
+        self.canvas_client = baseSectionVars.canvas_client
         self.indexed_items = baseSectionVars.indexed_items
         self.logger = baseSectionVars.logger
 
