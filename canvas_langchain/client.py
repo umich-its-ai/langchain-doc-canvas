@@ -7,6 +7,7 @@ from canvas_langchain.utils.logging import Logger
 from canvas_langchain.sections.announcements import AnnouncementLoader
 from canvas_langchain.sections.assignments import AssignmentLoader
 from canvas_langchain.sections.files import FileLoader
+from canvas_langchain.sections.mivideo import MiVideoLoader
 from canvas_langchain.sections.modules import ModuleLoader
 from canvas_langchain.sections.pages import PageLoader
 from canvas_langchain.sections.syllabus import SyllabusLoader
@@ -41,14 +42,21 @@ class CanvasClient:
         return [tab.label for tab in self._course.get_tabs()]
 
     def get_loaders(
-        self, index_external_urls: bool, logger: Logger
+        self, course: Course, index_external_urls: bool, logger: Logger
     ) -> dict[str, BaseSectionLoader]:
-        base_vars = BaseSectionLoaderVars(
-            canvas_client_extractor=self.content_extractor,
-            indexed_items=set(),
+        mivideo_loader = MiVideoLoader(
+            canvas=self._canvas,
+            course=course,
+            indexed_items=self.indexed_items,
             logger=logger,
         )
-        course_api = urljoin(self.api_url, f"courses/{self._course.id}/")
+        base_vars = BaseSectionLoaderVars(
+            canvas_client_extractor=self.content_extractor,
+            indexed_items=self.indexed_items,
+            logger=logger,
+            mivideo_loader=mivideo_loader,
+        )
+        course_api = urljoin(self.api_url, f"courses/{course.id}/")
 
         assignment_loader = AssignmentLoader(baseSectionVars=base_vars)
         page_loader = PageLoader(baseSectionVars=base_vars, course_api=course_api)

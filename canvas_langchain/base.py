@@ -5,6 +5,7 @@ from langchain.docstore.document import Document
 from canvas_langchain.utils.embedded_media import parse_html_for_text_and_urls
 from canvas_langchain.utils.process_data import process_data
 from canvas_langchain.utils.logging import Logger
+from canvas_langchain.sections.mivideo import MiVideoLoader
 
 from canvasapi.discussion_topic import DiscussionTopic
 from canvasapi.assignment import Assignment
@@ -19,6 +20,7 @@ class BaseSectionLoaderVars:
     canvas_client_extractor: CanvasClientGetters
     indexed_items: set
     logger: Logger
+    mivideo_loader: MiVideoLoader
 
 
 class BaseSectionLoader(ABC):
@@ -28,6 +30,7 @@ class BaseSectionLoader(ABC):
         self.canvas_client_extractor = baseSectionVars.canvas_client_extractor
         self.indexed_items = baseSectionVars.indexed_items
         self.logger = baseSectionVars.logger
+        self.mivideo_loader = baseSectionVars.mivideo_loader
 
     @abstractmethod
     def load_section(self) -> list[Document]:

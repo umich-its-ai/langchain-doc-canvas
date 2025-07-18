@@ -1,6 +1,4 @@
 """Utility functions to load and format embedded urls, extract module metadata"""
-from datetime import datetime, timezone
-from typing import List, Tuple, Dict
 from urllib.parse import urlparse
 from langchain.docstore.document import Document
 from canvas_langchain.sections.mivideo import MiVideoLoader
@@ -11,7 +9,7 @@ try:
 except ImportError as err:
     import settings
 
-def process_data(metadata: Dict, embed_urls: List, mivideo_loader: MiVideoLoader) -> List[Document]:
+def process_data(metadata: dict, embed_urls: list, mivideo_loader: MiVideoLoader) -> list[Document]:
     """Process metadata and embed_urls on a single 'page'"""
     document_arr = []    
     # Format metadata
@@ -25,9 +23,9 @@ def process_data(metadata: Dict, embed_urls: List, mivideo_loader: MiVideoLoader
     return document_arr
 
 
-def _load_embed_urls(metadata: Dict, 
-                     embed_urls: List, 
-                     mivideo_loader: MiVideoLoader) -> List[Document]:
+def _load_embed_urls(metadata: dict, 
+                     embed_urls: list, 
+                     mivideo_loader: MiVideoLoader) -> list[Document]:
     """Load MiVideo content from embed urls"""
     docs = []
     for url in embed_urls:
