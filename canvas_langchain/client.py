@@ -1,7 +1,7 @@
 from canvasapi import Canvas
 from canvasapi.exceptions import Forbidden
 from canvasapi.course import Course
-from canvasapi.paginatedList import PaginatedList
+from canvasapi.paginated_list import PaginatedList
 from urllib.parse import urljoin
 from datetime import date
 
