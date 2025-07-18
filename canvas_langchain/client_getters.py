@@ -19,7 +19,7 @@ class CanvasClientGetters():
         return self._course.get_assignments()
     
     def get_assignment(self, assignment_id) -> Assignment:
-        self._course.get_assignment(assignment_id)
+        return self._course.get_assignment(assignment_id)
     
     def get_files(self) -> PaginatedList:
         return self._course.get_files()

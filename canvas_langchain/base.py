@@ -54,8 +54,8 @@ class BaseSectionLoader(ABC):
         document_arr = []    
         if metadata['content']:
             document_arr.append(Document(
-                page_content=metadata['content'],
-                metadata=metadata['data']
+                page_content=self._remove_null_bytes(metadata['content']),
+                metadata=self._remove_null_bytes(metadata['data'])
             ))
         return document_arr
     
