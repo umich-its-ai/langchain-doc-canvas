@@ -2,7 +2,6 @@ from typing import Literal
 from langchain.document_loaders.base import BaseLoader
 from langchain.docstore.document import Document
 from pydantic import BaseModel
-import time
 
 from canvas_langchain.client import CanvasClient
 from canvas_langchain.utils.logging import Logger
