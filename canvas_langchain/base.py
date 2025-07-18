@@ -62,3 +62,12 @@ class BaseSectionLoader(ABC):
                 metadata=metadata['data']
             ))
         return document_arr
+    
+    def _remove_null_bytes(self, metadata_item: str | dict) -> str | dict:
+        """Recursively remove NUL bytes from string or dict of strings"""
+        if isinstance(metadata_item, str):
+            return metadata_item.replace("\x00", '')
+        elif isinstance(metadata_item, dict):
+            return {key: self._remove_null_bytes(value) for key, value in metadata_item.items()}
+        return metadata_item
+

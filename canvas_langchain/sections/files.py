@@ -87,12 +87,14 @@ class FileLoader(BaseSectionLoader):
     def _load_rtf_or_text_file(self, file: File) -> list[Document]:
         """Loads and formats text and rtf file data"""
         file_contents = file.get_contents(binary=False)
-        text_document = Document(page_content=file_contents,
-                                metadata={"filename": file.filename, 
-                                        "source": file.url, 
-                                        "kind": "file",
-                                        "id": file.id })
-        return [text_document]
+        metadata={'content': file_contents,
+                  "data": {"filename": file.filename, 
+                           "source": file.url, 
+                            "kind": "file",
+                            "id": file.id }
+
+        }
+        return self.process_data(metadata=metadata)
 
     def _load_html_file(self, file: File) -> list[Document]:
         """Loads and formats html file data"""
@@ -114,13 +116,14 @@ class FileLoader(BaseSectionLoader):
             pdf_reader = PdfReader(BytesIO(file_contents))
             # extract info by page
             for i, page in enumerate(pdf_reader.pages):
-                pdf_page = Document(page_content=page.extract_text(),
-                                    metadata={"filename": file.filename,
+                metadata={"content": page.extract_text(),
+                          "data": {"filename": file.filename,
                                               "source": urljoin(self.course_api, f"files/{file.id}"),
                                               "kind": "file",
                                               "page": i+1}
-                                    )
-                docs.append(pdf_page)
+
+                        }       
+                docs.extend(self.process_data(metadata=metadata))
         except errors.FileNotDecryptedError:
             self.logger.logStatement(message=f"Error: pdf {file.filename} is encrypted.",
                                      level="WARNING")
@@ -156,6 +159,7 @@ class FileLoader(BaseSectionLoader):
                 docs = loader.load()
 
                 for i, _ in enumerate(docs):
+                    docs[i].page_content = self._remove_null_bytes(docs[i].page_content)
                     docs[i].metadata["filename"] = file.filename
                     docs[i].metadata["source"] = urljoin(self.course_api, f"files/{file.id}")
         except Exception:
