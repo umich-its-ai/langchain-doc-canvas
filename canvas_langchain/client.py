@@ -27,6 +27,7 @@ class CanvasClient():
         self._canvas = Canvas(api_url, api_key)
         self.api_url = api_url
         self._course = self.get_course()
+        self.content_extractor = CanvasClientGetters(self._canvas, self._course)
 
     def get_course(self, course_id: int) -> Course:
         try:
@@ -42,7 +43,7 @@ class CanvasClient():
         return [tab.label for tab in self._course.get_tabs()]
 
     def get_loaders(self, index_external_urls: bool, logger: Logger) -> dict[str, BaseSectionLoader]:
-        base_vars = BaseSectionLoaderVars(canvas=self._canvas, course=self._course, indexed_items=set(), logger=logger)
+        base_vars = BaseSectionLoaderVars(canvas_content_extractor=self.content_extractor, indexed_items=set(), logger=logger)
         course_api = urljoin(self.api_url, f'courses/{self._course.id}/')
         
         assignment_loader = AssignmentLoader(baseSectionVars=base_vars)
@@ -63,6 +64,12 @@ class CanvasClient():
             "Syllabus": SyllabusLoader(baseSectionVars=base_vars, course_api=course_api)
         }
     
+
+class CanvasClientGetters():
+    def __init__(self, canvas, course: Course):
+        self._canvas = canvas
+        self._course = course
+
     def get_announcements(self) -> PaginatedList:
         return self.canvas.get_announcements(context_codes=[self._course],
                                                             start_date="2016-01-01",

@@ -39,7 +39,7 @@ class FileLoader(BaseSectionLoader):
 
         file_documents = []
         try:
-            files = self.canvas_client.get_files()
+            files = self.canvas_client_extractor.get_files()
             for file in files:
                 file_documents.extend(self._load_item(file))
 
@@ -81,7 +81,7 @@ class FileLoader(BaseSectionLoader):
         """Loads file from module item"""
         self.logger.logStatement(message=f"Loading file {item.content_id} from module.", 
                                  level="DEBUG")
-        file = self.canvas_client.get_file(file_id=item.content_id)
+        file = self.canvas_client_extractor.get_file(file_id=item.content_id)
         return self._load_item(file)
 
     def _load_rtf_or_text_file(self, file: File) -> list[Document]:

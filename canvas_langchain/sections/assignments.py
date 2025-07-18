@@ -13,7 +13,7 @@ class AssignmentLoader(BaseSectionLoader):
 
         assignment_documents = []
         try:
-            assignments = self.canvas_client.get_assignments()
+            assignments = self.canvas_client_extractor.get_assignments()
             for assignment in assignments:
                 if f"Assignment:{assignment.id}" not in self.indexed_items:
                     self.indexed_items.add(f"Assignment:{assignment.id}")
@@ -60,7 +60,7 @@ class AssignmentLoader(BaseSectionLoader):
                          formatted_datetime: str | None) -> list[Document]:
         """Loads assignment from module item"""
         self.logger.logStatement(message=f"Loading assignment {item.content_id} from module.", level="DEBUG")
-        assignment = self.canvas_client.get_assignment(assignment_id=item.content_id)
+        assignment = self.canvas_client_extractor.get_assignment(assignment_id=item.content_id)
         description=None
         if locked and formatted_datetime:
             description=f"Assignment is part of module {module_name}, which is locked until {formatted_datetime}"

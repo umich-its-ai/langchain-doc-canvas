@@ -15,7 +15,7 @@ class PageLoader(BaseSectionLoader):
         page_documents = []
 
         try:
-            pages = self.canvas_client.get_pages()
+            pages = self.canvas_client_extractor.get_pages()
             for page in pages:
                 page_documents.extend(self._load_item(page))
 
@@ -46,5 +46,5 @@ class PageLoader(BaseSectionLoader):
         """Loads page from module item"""
         self.logger.logStatement(message=f"Loading page {item.page_url} from module.", 
                                     level="DEBUG")
-        page = self.canvas_client.get_page(url=item.page_url)
+        page = self.canvas_client_extractor.get_page(url=item.page_url)
         return self._load_item(page)

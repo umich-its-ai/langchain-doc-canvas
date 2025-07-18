@@ -10,12 +10,12 @@ from canvasapi.assignment import Assignment
 from canvasapi.file import File
 from canvasapi.module import ModuleItem
 from canvasapi.page import Page
-from canvas_langchain.client import CanvasClient
+from canvas_langchain.client import CanvasClientGetters
 
 
 @dataclass
 class BaseSectionLoaderVars:
-    canvas_client: CanvasClient
+    canvas_client_extractor: CanvasClientGetters
     indexed_items: set
     logger: Logger
 
@@ -23,7 +23,7 @@ class BaseSectionLoaderVars:
 class BaseSectionLoader(ABC):
     """Abstract base class for loading sections of a Canvas course"""
     def __init__(self, baseSectionVars: BaseSectionLoaderVars):
-        self.canvas_client = baseSectionVars.canvas_client
+        self.canvas_client_extractor = baseSectionVars.canvas_client_extractor
         self.indexed_items = baseSectionVars.indexed_items
         self.logger = baseSectionVars.logger
 

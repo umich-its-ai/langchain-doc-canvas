@@ -10,7 +10,7 @@ class SyllabusLoader(BaseSectionLoader):
 
     def load_section(self) -> list[Document]:
         self.logger.logStatement(message='Loading syllabus...\n', level="INFO")
-        syllabus_body = self.canvas_client.get_syllabus()
+        syllabus_body = self.canvas_client_extractor.get_syllabus()
         if syllabus_body:
             try:
                 syllabus_text = self.parse_html(syllabus_body)

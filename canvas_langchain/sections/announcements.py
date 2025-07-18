@@ -14,7 +14,7 @@ class AnnouncementLoader(BaseSectionLoader):
 
         announcement_documents = []
         try:
-            announcements = self.canvas_client.get_announcements()
+            announcements = self.canvas_client_extractor.get_announcements()
 
             for announcement in announcements:
                 announcement_documents.extend(self._load_item(announcement=announcement))

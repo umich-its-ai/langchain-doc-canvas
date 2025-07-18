@@ -17,7 +17,7 @@ class ModuleLoader(BaseSectionLoader):
         self.logger.logStatement(message='Loading modules...\n', level="INFO")
         module_documents = []
         try:
-            modules = self.canvas_client.get_modules()
+            modules = self.canvas_client_extractor.get_modules()
             for module in modules:
                 module_documents.extend(self._load_item(module))
 
