@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from bs4 import BeautifulSoup
 from abc import ABC, abstractmethod
-
 from langchain.docstore.document import Document
 from canvas_langchain.utils.embedded_media import parse_html_for_text_and_urls
 from canvas_langchain.utils.process_data import process_data
@@ -36,7 +35,9 @@ class BaseSectionLoader(ABC):
         pass
 
     def _load_item(
-        self, item: File | Assignment | Page | DiscussionTopic | ModuleItem
+        self,
+        item: File | Assignment | Page | DiscussionTopic | ModuleItem,
+        description: str | None,
     ) -> list[Document]:
         """Load a single section item and return a list of Document objects"""
         raise NotImplementedError(
