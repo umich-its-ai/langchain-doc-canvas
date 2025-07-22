@@ -20,9 +20,8 @@ from langchain_community.document_loaders import (
 ) 
 
 class FileLoader(BaseSectionLoader):
-    def __init__(self, baseSectionVars: BaseSectionLoaderVars, course_api: str, invalid_files: list[str]):
+    def __init__(self, baseSectionVars: BaseSectionLoaderVars, course_api: str):
         super().__init__(baseSectionVars)
-        self.invalid_files = invalid_files
         self.course_api = course_api
         self.type_match = {
             "text/md": "md",
@@ -69,7 +68,6 @@ class FileLoader(BaseSectionLoader):
             except ResourceDoesNotExist as err:
                 self.logger.logStatement(message=f"File {file.filename} does not exist - likely in hidden module {err}",
                                         level="DEBUG")
-                self.invalid_files.append(f"{file.filename} ({content_type})")
 
             except Exception as ex:
                 self.logger.logStatement(message=f"Exception while loading file {file.filename}: {ex}",
@@ -77,7 +75,7 @@ class FileLoader(BaseSectionLoader):
 
         return []
 
-    def load_from_module(self, item: File):
+    def load_from_module(self, item: File, **kwargs):
         """Loads file from module item"""
         self.logger.logStatement(message=f"Loading file {item.content_id} from module.", 
                                  level="DEBUG")
@@ -90,8 +88,8 @@ class FileLoader(BaseSectionLoader):
         metadata={'content': file_contents,
                   "data": {"filename": file.filename, 
                            "source": file.url, 
-                            "kind": "file",
-                            "id": file.id }
+                           "kind": "file",
+                           "id": file.id }
 
         }
         return self.process_data(metadata=metadata)
@@ -155,13 +153,12 @@ class FileLoader(BaseSectionLoader):
                         loader = UnstructuredMarkdownLoader(file_path)
                     case 'pptx':
                         loader=UnstructuredPowerPointLoader(file_path)
-
-                docs = loader.load()
-
-                for i, _ in enumerate(docs):
-                    docs[i].page_content = self._remove_null_bytes(docs[i].page_content)
-                    docs[i].metadata["filename"] = file.filename
-                    docs[i].metadata["source"] = urljoin(self.course_api, f"files/{file.id}")
+                if loader:
+                    docs = loader.load()
+                    for i, _ in enumerate(docs):
+                        docs[i].page_content = self._remove_null_bytes(docs[i].page_content)
+                        docs[i].metadata["filename"] = file.filename
+                        docs[i].metadata["source"] = urljoin(self.course_api, f"files/{file.id}")
         except Exception:
             self.logger.logStatement(message=f"Error loading {file.filename}", level="WARNING")
         return docs

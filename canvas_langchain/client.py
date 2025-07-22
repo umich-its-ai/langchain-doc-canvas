@@ -44,7 +44,7 @@ class CanvasClient():
         
         assignment_loader = AssignmentLoader(baseSectionVars=base_vars)
         page_loader = PageLoader(baseSectionVars=base_vars, course_api=course_api)
-        file_loader = FileLoader(baseSectionVars=base_vars, course_api=course_api, invalid_files=[])
+        file_loader = FileLoader(baseSectionVars=base_vars, course_api=course_api)
 
         return {
             "Announcements": AnnouncementLoader(baseSectionVars=base_vars),

@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from typing import Tuple
 from canvasapi.exceptions import CanvasException
 from canvasapi.module import ModuleItem
 from langchain_community.document_loaders import UnstructuredURLLoader
@@ -33,13 +32,12 @@ class ModuleLoader(BaseSectionLoader):
         module_docs = []
         try:
             for item in module_items:
-                if (item.type == "Page" and not locked) or (item.type == "File"):
-                    module_docs.extend(self.loaders[f"{item.type}s"].load_from_module(item=item))
-                elif item.type == "Assignment":
-                    module_docs.extend(self.loaders["Assignments"].load_from_module(item=item,
-                                                                                    module_name=module.name,
-                                                                                    locked=locked,
-                                                                                    formatted_datetime=formatted_datetime))
+                if item.type in ["Page", "File", "Assignment"]:
+                    module_docs.extend(self.loaders[f"{item.type}s"].load_from_module(item=item,
+                                                                                      module_name=module.name,
+                                                                                      locked=locked,
+                                                                                      formatted_datetime=formatted_datetime
+                                                                                      ))
                 elif item.type == "ExternalUrl" and self.index_external_urls:
                     module_docs.extend(self._load_external_url(item))
             return module_docs
@@ -47,7 +45,7 @@ class ModuleLoader(BaseSectionLoader):
             self.logger.logStatement(message=f"Canvas exception loading module items. Error: {ex}", level="WARNING")
             return []
 
-    def _get_module_metadata(self, unlock_time: str) -> Tuple[bool, str]:
+    def _get_module_metadata(self, unlock_time: str) -> tuple[bool, datetime | str]:
         """Returns if module is locked and corresponding unlock time ("" if unlocked)"""
         locked=False
         formatted_datetime=""

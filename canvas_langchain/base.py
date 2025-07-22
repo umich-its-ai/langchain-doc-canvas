@@ -37,9 +37,9 @@ class BaseSectionLoader(ABC):
         raise NotImplementedError("This optional method should be implemented in subclass")
 
     def load_from_module(self, item: File | Assignment | Page, 
-                         module_name: str | None, 
-                         locked: bool | None, 
-                         formatted_datetime: str | None) -> list[Document]:
+                         module_name: str | None = None, 
+                         locked: bool | None = None, 
+                         formatted_datetime: str | None = None) -> list[Document]:
         """Load a section item from a module"""
         raise NotImplementedError("This optional method should be implemented in subclass")
 

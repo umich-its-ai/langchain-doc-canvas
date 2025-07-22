@@ -42,7 +42,7 @@ class PageLoader(BaseSectionLoader):
             return self.process_data(metadata=metadata)
         return []
 
-    def load_from_module(self, item: Page) -> list[Document]:
+    def load_from_module(self, item: Page, **kwargs) -> list[Document]:
         """Loads page from module item"""
         self.logger.logStatement(message=f"Loading page {item.page_url} from module.", 
                                     level="DEBUG")

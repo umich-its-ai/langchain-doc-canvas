@@ -1,4 +1,3 @@
-from datetime import date
 from canvasapi.exceptions import CanvasException
 from langchain.docstore.document import Document
 from canvasapi.discussion_topic import DiscussionTopic
