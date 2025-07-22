@@ -37,5 +37,5 @@ class CanvasClientGetters():
     def get_page(self, url) -> Page:
         return self._course.get_page(url)
     
-    def get_syllabus(self) -> PaginatedList:
+    def get_syllabus(self) -> str:
         return self._course.syllabus_body
