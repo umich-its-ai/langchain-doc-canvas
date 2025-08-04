@@ -9,21 +9,7 @@ try:
 except ImportError as err:
     import settings
 
-def process_data(metadata: dict, embed_urls: list, mivideo_loader: MiVideoLoader) -> list[Document]:
-    """Process metadata and embed_urls on a single 'page'"""
-    document_arr = []    
-    # Format metadata
-    if metadata['content']:
-        document_arr.append(Document(
-            page_content=metadata['content'],
-            metadata=metadata['data']
-        ))
-    # Load content from embed urls
-    document_arr.extend(_load_embed_urls(metadata=metadata, embed_urls=embed_urls, mivideo_loader=mivideo_loader))
-    return document_arr
-
-
-def _load_embed_urls(metadata: dict, 
+def load_embed_urls(metadata: dict, 
                      embed_urls: list, 
                      mivideo_loader: MiVideoLoader) -> list[Document]:
     """Load MiVideo content from embed urls"""
@@ -31,7 +17,7 @@ def _load_embed_urls(metadata: dict,
     for url in embed_urls:
         mivideo_loader.logger.logStatement(message=f"Loading embed url {url}", level="DEBUG")
         # extract media_id from each url + load captions
-        if (mivideo_media_id := _get_media_id(url, logger=mivideo_loader.logger)):
+        if (mivideo_media_id := get_media_id(url, logger=mivideo_loader.logger)):
             docs.extend(mivideo_loader.load(mivideo_id=mivideo_media_id))
         
     for doc in docs:
@@ -40,7 +26,7 @@ def _load_embed_urls(metadata: dict,
     return docs
 
 
-def _get_media_id(url: str, logger: Logger) -> str | None:
+def get_media_id(url: str, logger: Logger) -> str | None:
     """Extracts unique media id from each URL to load mivideo"""
     parsed=urlparse(url)
     if parsed.netloc == getattr(settings, 'MIVIDEO_KAF_HOSTNAME', 'aakaf.mivideo.it.umich.edu'):

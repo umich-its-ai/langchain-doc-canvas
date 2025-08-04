@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from abc import ABC, abstractmethod
 from langchain.docstore.document import Document
 from canvas_langchain.utils.embedded_media import parse_html_for_text_and_urls
-from canvas_langchain.utils.process_data import process_data
+from canvas_langchain.utils.process_data import load_embed_urls
 from canvas_langchain.utils.logging import Logger
 from canvas_langchain.sections.mivideo import MiVideoLoader
 
@@ -62,6 +62,9 @@ class BaseSectionLoader(ABC):
                 page_content=self._remove_null_bytes(metadata['content']),
                 metadata=self._remove_null_bytes(metadata['data'])
             ))
+        document_arr.extend(load_embed_urls(metadata=metadata, 
+                                           embed_urls=metadata.get('embed_urls', []), 
+                                           mivideo_loader=self.mivideo_loader))
         return document_arr
     
     def _remove_null_bytes(self, metadata_item: str | dict) -> str | dict:
