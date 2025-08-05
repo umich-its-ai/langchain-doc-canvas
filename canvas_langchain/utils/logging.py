@@ -7,7 +7,8 @@ logging.getLogger("canvasapi").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("LangChainKaltura").setLevel(logging.WARNING)
 
-class Logger():
+
+class Logger:
     def __init__(self):
         self.progress = []
         self.errors = []
@@ -23,7 +24,6 @@ class Logger():
                 logger.warning(message)
                 self.errors.append({"message": message, "level": level})
         self.progress.append({"message": message, "level": level})
-
 
     def _filtered_statements_by_level(self, level: str) -> list:
         """Returns statements corresponding to desired output level"""
