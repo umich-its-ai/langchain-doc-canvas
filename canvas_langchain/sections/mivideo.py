@@ -101,12 +101,16 @@ class MiVideoLoader:
 
     def _load_gallery(self) -> List[Document]:
         """Load all media in the gallery"""
+        self.logger.logStatement(
+            message="Loading MiVideo Media Gallery\n", level="INFO"
+        )
         return self.caption_loader.load()
 
     def _load_video(self, mivideo_id: str) -> List[Document]:
         """Load a single media post by ID if not already indexed"""
         if f"MiVideo:{mivideo_id}" in self.indexed_items:
             return []
+        self.logger.logStatement(message=f"Loading MiVideo: {mivideo_id}", level="INFO")
         return self.caption_loader.fetchMediaCaption(
             {"id": mivideo_id, "name": "unidentified embedded media"}
         )

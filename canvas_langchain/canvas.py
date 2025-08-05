@@ -29,6 +29,7 @@ class CanvasLoader(BaseLoader):
         course_id: int,
         index_external_urls: bool = False,
     ):
+        self.load_mivideo = True # Turn into feature flag in next PR
         self.logger = Logger()
         self.canvas_client = CanvasClient(api_url, api_key, course_id, self.logger)
         self.index_external_urls = index_external_urls
