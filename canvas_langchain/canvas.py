@@ -27,6 +27,7 @@ class CanvasLoader(BaseLoader):
         self.logger = Logger()
         self.canvas_client = CanvasClient(api_url, api_key, course_id)
         self.index_external_urls = index_external_urls
+        self.course_id = course_id
 
     def load(self) -> list[Document]:
         """Loads all available content from Canvas course"""
