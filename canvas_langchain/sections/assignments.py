@@ -1,6 +1,6 @@
+from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from canvasapi.assignment import Assignment
 from canvasapi.exceptions import CanvasException
-from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from langchain.docstore.document import Document
 
 
@@ -38,7 +38,6 @@ class AssignmentLoader(BaseSectionLoader):
         )
 
         try:
-
             # Custom description from locked module
             if description is not None:
                 assignment_description = description

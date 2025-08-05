@@ -12,7 +12,7 @@ class SyllabusLoader(BaseSectionLoader):
     def load_section(self) -> list[Document]:
         self.logger.logStatement(message="Loading syllabus...\n", level="INFO")
         try:
-            syllabus_body = self.canvas_client_extractor.get_syllabus()
+            syllabus_body, embed_urls = self.canvas_client_extractor.get_syllabus()
             if syllabus_body:
                 syllabus_text = self.parse_html(syllabus_body)
                 syllabus_url = urljoin(self.course_api, "assignments/syllabus")

@@ -1,23 +1,19 @@
 import tempfile
 from io import BytesIO
-from PyPDF2 import PdfReader
-from PyPDF2 import errors
 from urllib.parse import urljoin
-from canvas_langchain.base import BaseSectionLoaderVars
-from canvasapi.file import File
 
-from canvas_langchain.base import BaseSectionLoader
+from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
-
+from canvasapi.file import File
 from langchain.docstore.document import Document
-
 from langchain_community.document_loaders import (
+    CSVLoader,
     Docx2txtLoader,
     UnstructuredExcelLoader,
     UnstructuredMarkdownLoader,
     UnstructuredPowerPointLoader,
-    CSVLoader,
 )
+from PyPDF2 import PdfReader, errors
 
 
 class FileLoader(BaseSectionLoader):

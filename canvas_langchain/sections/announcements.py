@@ -1,7 +1,7 @@
+from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
+from canvasapi.discussion_topic import DiscussionTopic
 from canvasapi.exceptions import CanvasException
 from langchain.docstore.document import Document
-from canvasapi.discussion_topic import DiscussionTopic
-from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 
 
 class AnnouncementLoader(BaseSectionLoader):
@@ -12,7 +12,7 @@ class AnnouncementLoader(BaseSectionLoader):
         """Load all announcements for a Canvas course"""
         self.logger.logStatement(message="Loading announcements...\n", level="INFO")
 
-        announcement_documents = embed_urls = []
+        announcement_documents = []
         try:
             announcements = self.canvas_client_extractor.get_announcements()
 

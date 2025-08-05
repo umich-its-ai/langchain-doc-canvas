@@ -1,9 +1,9 @@
 from urllib.parse import urljoin
-from canvasapi.exceptions import CanvasException
-from langchain.docstore.document import Document
 
 from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
+from canvasapi.exceptions import CanvasException
 from canvasapi.page import Page
+from langchain.docstore.document import Document
 
 
 class PageLoader(BaseSectionLoader):
@@ -65,4 +65,5 @@ class PageLoader(BaseSectionLoader):
             message=f"Loading page {item.page_url} from module.", level="DEBUG"
         )
         page = self.canvas_client_extractor.get_page(url=item.page_url)
+        return self._load_item(page)
         return self._load_item(page)

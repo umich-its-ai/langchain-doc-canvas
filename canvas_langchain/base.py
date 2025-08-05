@@ -1,18 +1,17 @@
-from dataclasses import dataclass
-from bs4 import BeautifulSoup
 from abc import ABC, abstractmethod
-from langchain.docstore.document import Document
-from canvas_langchain.utils.embedded_media import parse_html_for_text_and_urls
-from canvas_langchain.utils.process_data import load_embed_urls
-from canvas_langchain.utils.logging import Logger
-from canvas_langchain.sections.mivideo import MiVideoLoader
+from dataclasses import dataclass
 
-from canvasapi.discussion_topic import DiscussionTopic
+from canvas_langchain.client_getters import CanvasClientGetters
+from canvas_langchain.sections.mivideo import MiVideoLoader
+from canvas_langchain.utils.embedded_media import parse_html_for_text_and_urls
+from canvas_langchain.utils.logging import Logger
+from canvas_langchain.utils.process_data import load_embed_urls
 from canvasapi.assignment import Assignment
+from canvasapi.discussion_topic import DiscussionTopic
 from canvasapi.file import File
 from canvasapi.module import ModuleItem
 from canvasapi.page import Page
-from canvas_langchain.client_getters import CanvasClientGetters
+from langchain.docstore.document import Document
 
 
 @dataclass
@@ -62,10 +61,14 @@ class BaseSectionLoader(ABC):
     def parse_html(self, html: str) -> str:
         """Extracts text and a list of embedded urls from HTML content"""
         return parse_html_for_text_and_urls(
-            canvas=self.canvas, course=self.course, html=html, logger=self.logger
+            canvas_client_extractor=self.canvas_client_extractor,
+            html=html,
+            logger=self.logger,
         )
 
-    def process_data(self, metadata: dict) -> list[Document]:
+    def process_data(
+        self, metadata: dict, embed_urls: list[str] = []
+    ) -> list[Document]:
         """Process metadata on a single 'page'"""
         document_arr = []
         if metadata["content"]:
@@ -75,13 +78,14 @@ class BaseSectionLoader(ABC):
                     metadata=self._remove_null_bytes(metadata["data"]),
                 )
             )
-        document_arr.extend(
-            load_embed_urls(
-                metadata=metadata,
-                embed_urls=metadata.get("embed_urls", []),
-                mivideo_loader=self.mivideo_loader,
+        if embed_urls:
+            document_arr.extend(
+                load_embed_urls(
+                    metadata=metadata,
+                    embed_urls=embed_urls,
+                    mivideo_loader=self.mivideo_loader,
+                )
             )
-        )
         return document_arr
 
     def _remove_null_bytes(self, metadata_item: str | dict) -> str | dict:

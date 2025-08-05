@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
+
+from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from canvasapi.exceptions import CanvasException
 from canvasapi.module import ModuleItem
-from langchain_community.document_loaders import UnstructuredURLLoader
-from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from langchain.docstore.document import Document
+from langchain_community.document_loaders import UnstructuredURLLoader
 
 
 class ModuleLoader(BaseSectionLoader):

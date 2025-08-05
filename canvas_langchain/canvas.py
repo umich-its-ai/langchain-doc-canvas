@@ -1,10 +1,10 @@
 from typing import Literal
-from langchain.document_loaders.base import BaseLoader
-from langchain.docstore.document import Document
-from pydantic import BaseModel
 
 from canvas_langchain.client import CanvasClient
 from canvas_langchain.utils.logging import Logger
+from langchain.docstore.document import Document
+from langchain.document_loaders.base import BaseLoader
+from pydantic import BaseModel
 
 
 # Prevents conflicts with other classes in UMGPT - Happy to refactor as needed
@@ -30,7 +30,7 @@ class CanvasLoader(BaseLoader):
         index_external_urls: bool = False,
     ):
         self.logger = Logger()
-        self.canvas_client = CanvasClient(api_url, api_key, course_id)
+        self.canvas_client = CanvasClient(api_url, api_key, course_id, self.logger)
         self.index_external_urls = index_external_urls
         self.course_id = course_id
 
@@ -43,7 +43,7 @@ class CanvasLoader(BaseLoader):
         try:
             available_tabs = self.canvas_client.get_available_tabs()
             loaders = self.canvas_client.get_loaders(
-                index_external_urls=self.index_external_urls, logger=self.logger
+                index_external_urls=self.index_external_urls
             )
 
             for tab_name in available_tabs:
