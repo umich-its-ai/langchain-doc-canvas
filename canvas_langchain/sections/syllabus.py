@@ -10,9 +10,9 @@ class SyllabusLoader(BaseSectionLoader):
 
     def load_section(self) -> list[Document]:
         self.logger.logStatement(message='Loading syllabus...\n', level="INFO")
-        syllabus_body = self.canvas_client_extractor.get_syllabus()
-        if syllabus_body:
-            try:
+        try:
+            syllabus_body = self.canvas_client_extractor.get_syllabus()
+            if syllabus_body:
                 syllabus_text = self.parse_html(syllabus_body)
                 syllabus_url = urljoin(self.course_api, 'assignments/syllabus')
 
@@ -23,7 +23,10 @@ class SyllabusLoader(BaseSectionLoader):
                             }
                 return self.process_data(metadata=metadata)
 
-            except AttributeError as err:
-                self.logger.logStatement(message=f"Attribute error loading syllabus: {err}", level="WARNING")
+        except AttributeError as err:
+            self.logger.logStatement(message=f"Attribute error loading syllabus: {err}", level="WARNING")
+
+        except Exception as err:
+            self.logger.logStatement(message=f"Error loading syllabus: {err}", level="WARNING")
 
         return []

@@ -70,7 +70,7 @@ class FileLoader(BaseSectionLoader):
                                         level="DEBUG")
 
             except Exception as ex:
-                self.logger.logStatement(message=f"Exception while loading file {file.filename}: {ex}",
+                self.logger.logStatement(message=f"Error loading file {file.filename}: {ex}",
                         level="DEBUG")
 
         return []

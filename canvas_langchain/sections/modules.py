@@ -40,10 +40,12 @@ class ModuleLoader(BaseSectionLoader):
                                                                                       ))
                 elif item.type == "ExternalUrl" and self.index_external_urls:
                     module_docs.extend(self._load_external_url(item))
-            return module_docs
         except CanvasException as ex:
             self.logger.logStatement(message=f"Canvas exception loading module items. Error: {ex}", level="WARNING")
-            return []
+        except Exception as ex:
+            self.logger.logStatement(message=f"Error loading module items. Error: {ex}", level="WARNING")
+        
+        return module_docs
 
     def _get_module_metadata(self, unlock_time: str) -> tuple[bool, datetime | str]:
         """Returns if module is locked and corresponding unlock time ("" if unlocked)"""

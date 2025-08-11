@@ -26,20 +26,24 @@ class PageLoader(BaseSectionLoader):
 
     def _load_item(self, page: Page) -> list[Document]:
         """Loads and formats a single page and its embedded URL(s) content """
-        if not page.locked_for_user and page.body and f"Page:{page.page_id}" not in self.indexed_items:
-            self.logger.logStatement(message=f"Loading page: {page.title}", level="DEBUG")
-            self.indexed_items.add(f"Page:{page.page_id}")                      
+        try:
+            if not page.locked_for_user and page.body and f"Page:{page.page_id}" not in self.indexed_items:
+                self.logger.logStatement(message=f"Loading page: {page.title}", level="DEBUG")
+                self.indexed_items.add(f"Page:{page.page_id}")                      
 
-            page_body = self.parse_html(html=page.body)
-           
-            page_url = urljoin(self.course_api, f'pages/{page.url}')
-            metadata={"content": page_body,
-                    "data": {"filename": page.title,
-                             "source": page_url,
-                             "kind": "page",
-                             "id": page.page_id}
-                    }
-            return self.process_data(metadata=metadata)
+                page_body = self.parse_html(html=page.body)
+            
+                page_url = urljoin(self.course_api, f'pages/{page.url}')
+                metadata={"content": page_body,
+                        "data": {"filename": page.title,
+                                "source": page_url,
+                                "kind": "page",
+                                "id": page.page_id}
+                        }
+                return self.process_data(metadata=metadata)
+        except Exception as error:
+            self.logger.logStatement(message=f"Error loading page {page.title}: {error}",
+                                     level="WARNING")
         return []
 
     def load_from_module(self, item: Page, **kwargs) -> list[Document]:

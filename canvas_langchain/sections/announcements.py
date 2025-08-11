@@ -27,12 +27,16 @@ class AnnouncementLoader(BaseSectionLoader):
     def _load_item(self, announcement: DiscussionTopic) -> list[Document]:
         """Loads a single announcement"""
         self.logger.logStatement(message=f"Loading announcement: {announcement.title}", level="DEBUG")
-        
-        announcement_text = self.parse_html(html=announcement.message)
-        metadata={"content": announcement_text,
-        "data": {"filename": announcement.title,
-                 "source": announcement.html_url,
-                 "kind": "announcement",
-                 "id": announcement.id}
-        }
-        return self.process_data(metadata=metadata)
+        try:
+            announcement_text = self.parse_html(html=announcement.message)
+            metadata={"content": announcement_text,
+            "data": {"filename": announcement.title,
+                    "source": announcement.html_url,
+                    "kind": "announcement",
+                    "id": announcement.id}
+            }
+            return self.process_data(metadata=metadata)
+        except Exception as error:
+            self.logger.logStatement(message=f"Error loading announcement {announcement.title}: {error}",
+                                     level="WARNING")
+        return []

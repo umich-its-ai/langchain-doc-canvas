@@ -29,29 +29,33 @@ class AssignmentLoader(BaseSectionLoader):
         """Load and format one assignment"""
         assignment_description = ""
         self.logger.logStatement(message=f"Loading assignment: {assignment.name}", level="DEBUG")
+        try:
+            # Custom description from locked module
+            if description is not None:
+                assignment_description = description
 
-        # Custom description from locked module
-        if description is not None:
-            assignment_description = description
+            elif assignment.description:
+                assignment_description = self.parse_html(assignment.description)
+                                                                
+            assignment_content = (
+                f"Name: {assignment.name}\n"
+                f"Due Date: {assignment.due_at}\n"
+                f"Points Possible: {assignment.points_possible}\n"
+                f"Description: {assignment_description}\n"
+            )
 
-        elif assignment.description:
-            assignment_description = self.parse_html(assignment.description)
-                                                              
-        assignment_content = (
-            f"Name: {assignment.name}\n"
-            f"Due Date: {assignment.due_at}\n"
-            f"Points Possible: {assignment.points_possible}\n"
-            f"Description: {assignment_description}\n"
-        )
+            metadata={"content":assignment_content,
+                    "data": {"filename": assignment.name,
+                            "source": assignment.html_url,
+                            "kind": "assignment",
+                            "id": assignment.id}
+                        }
 
-        metadata={"content":assignment_content,
-                  "data": {"filename": assignment.name,
-                           "source": assignment.html_url,
-                           "kind": "assignment",
-                           "id": assignment.id}
-                    }
-
-        return self.process_data(metadata=metadata)
+            return self.process_data(metadata=metadata)
+        except Exception as error:
+            self.logger.logStatement(message=f"Error loading assignment {assignment.name}: {error}",
+                                     level="WARNING")
+        return []
 
     def load_from_module(self, 
                          item:Assignment, 
