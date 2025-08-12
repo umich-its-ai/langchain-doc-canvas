@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="canvas_langchain",
-    version="0.9.19",
+    version="0.9.20",
     description="A canvas langchain integration",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -31,5 +31,5 @@ setup(
         "markdown",
         "pytz",
     ],
-    python_requires=">=3.8.1",
+    python_requires=">=3.10",
 )
