@@ -1,23 +1,19 @@
 import tempfile
 from io import BytesIO
-from PyPDF2 import PdfReader
-from PyPDF2 import errors
 from urllib.parse import urljoin
-from canvas_langchain.base import BaseSectionLoaderVars
-from canvasapi.file import File
 
-from canvas_langchain.base import BaseSectionLoader
+from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from canvasapi.exceptions import CanvasException, ResourceDoesNotExist
-
+from canvasapi.file import File
 from langchain.docstore.document import Document
-
 from langchain_community.document_loaders import (
+    CSVLoader,
     Docx2txtLoader,
     UnstructuredExcelLoader,
     UnstructuredMarkdownLoader,
     UnstructuredPowerPointLoader,
-    CSVLoader,
 )
+from PyPDF2 import PdfReader, errors
 
 
 class FileLoader(BaseSectionLoader):
@@ -107,7 +103,7 @@ class FileLoader(BaseSectionLoader):
     def _load_html_file(self, file: File) -> list[Document]:
         """Loads and formats html file data"""
         file_contents = file.get_contents(binary=False)
-        file_text = self.parse_html(html=file_contents)
+        file_text, embed_urls = self.parse_html(html=file_contents)
         metadata = {
             "content": file_text,
             "data": {
@@ -117,7 +113,7 @@ class FileLoader(BaseSectionLoader):
                 "id": file.id,
             },
         }
-        return self.process_data(metadata=metadata)
+        return self.process_data(metadata=metadata, embed_urls=embed_urls)
 
     def _load_pdf_file(self, file: File) -> list[Document]:
         """Loads given pdf file by page"""
