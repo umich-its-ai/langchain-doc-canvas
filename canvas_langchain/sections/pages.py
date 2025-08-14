@@ -66,4 +66,3 @@ class PageLoader(BaseSectionLoader):
         )
         page = self.canvas_client_extractor.get_page(url=item.page_url)
         return self._load_item(page)
-        return self._load_item(page)

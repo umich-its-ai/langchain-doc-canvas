@@ -1,13 +1,10 @@
-from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
+from canvas_langchain.base import BaseSectionLoader
 from canvasapi.discussion_topic import DiscussionTopic
 from canvasapi.exceptions import CanvasException
 from langchain.docstore.document import Document
 
 
 class AnnouncementLoader(BaseSectionLoader):
-    def __init__(self, baseSectionVars: BaseSectionLoaderVars):
-        super().__init__(baseSectionVars)
-
     def load_section(self) -> list[Document]:
         """Load all announcements for a Canvas course"""
         self.logger.logStatement(message="Loading announcements...\n", level="INFO")

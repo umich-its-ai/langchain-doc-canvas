@@ -5,12 +5,14 @@ from canvas_langchain.utils.logging import Logger
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
 from pydantic import BaseModel
+
 # compatible with isolated and integrated testing
 try:
     from django.conf import settings
 
 except ImportError:
     import settings
+
 
 # Prevents conflicts with other classes in UMGPT - Happy to refactor as needed
 class LogStatement(BaseModel):
@@ -34,7 +36,7 @@ class CanvasLoader(BaseLoader):
         course_id: int,
         index_external_urls: bool = False,
     ):
-        self.load_mivideo = True # Turn into feature flag in next PR
+        self.load_mivideo = True  # Turn into feature flag in next PR
         self.logger = Logger()
         api_key = (
             settings.ADMIN_CANVAS_API_KEY if settings.ADMIN_CANVAS_API_KEY else api_key
