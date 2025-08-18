@@ -77,7 +77,7 @@ class MiVideoLoader:
                     int(
                         getattr(
                             settings,
-                            "CANVAS_USER_ID_OVERRIDE_DEV_ONLY",
+                            "MIVIDEO_CANVAS_USER_ID_OVERRIDE_DEV_ONLY",
                             self.canvas_content_extractor.get_user_id(),
                         )
                     )

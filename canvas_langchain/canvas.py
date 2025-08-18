@@ -38,8 +38,8 @@ class CanvasLoader(BaseLoader):
     ):
         self.load_mivideo = True  # Turn into feature flag in next PR
         self.logger = Logger()
-        api_key = (
-            settings.ADMIN_CANVAS_API_KEY if settings.ADMIN_CANVAS_API_KEY else api_key
+        api_key = getattr(
+            settings, "MIVIDEO_ADMIN_CANVAS_API_KEY", api_key
         )  # override for mivideo caption access
         self.canvas_client = CanvasClient(api_url, api_key, course_id, self.logger)
         self.index_external_urls = index_external_urls
