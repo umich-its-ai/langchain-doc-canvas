@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Optional
 
 from canvas_langchain.client_getters import CanvasClientGetters
 from canvas_langchain.sections.mivideo import MiVideoLoader
@@ -60,7 +61,7 @@ class BaseSectionLoader(ABC):
             "This optional method should be implemented in subclass"
         )
 
-    def parse_html(self, html: str) -> str:
+    def parse_html(self, html: str):
         """Extracts text and a list of embedded urls from HTML content"""
         return parse_html_for_text_and_urls(
             canvas_client_extractor=self.canvas_client_extractor,
@@ -70,7 +71,7 @@ class BaseSectionLoader(ABC):
         )
 
     def process_data(
-        self, metadata: dict, embed_urls: list[str] = []
+        self, metadata: dict, embed_urls: Optional[list[str]] = None
     ) -> list[Document]:
         """Process metadata on a single 'page'"""
         document_arr = []
