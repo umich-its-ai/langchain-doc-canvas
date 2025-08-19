@@ -1,13 +1,10 @@
+from canvas_langchain.base import BaseSectionLoader
+from canvasapi.discussion_topic import DiscussionTopic
 from canvasapi.exceptions import CanvasException
 from langchain.docstore.document import Document
-from canvasapi.discussion_topic import DiscussionTopic
-from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 
 
 class AnnouncementLoader(BaseSectionLoader):
-    def __init__(self, baseSectionVars: BaseSectionLoaderVars):
-        super().__init__(baseSectionVars)
-
     def load_section(self) -> list[Document]:
         """Load all announcements for a Canvas course"""
         self.logger.logStatement(message="Loading announcements...\n", level="INFO")
@@ -35,7 +32,7 @@ class AnnouncementLoader(BaseSectionLoader):
             message=f"Loading announcement: {announcement.title}", level="DEBUG"
         )
         try:
-            announcement_text = self.parse_html(html=announcement.message)
+            announcement_text, embed_urls = self.parse_html(html=announcement.message)
             metadata = {
                 "content": announcement_text,
                 "data": {
@@ -45,7 +42,7 @@ class AnnouncementLoader(BaseSectionLoader):
                     "id": announcement.id,
                 },
             }
-            return self.process_data(metadata=metadata)
+            return self.process_data(metadata=metadata, embed_urls=embed_urls)
         except Exception as error:
             self.logger.logStatement(
                 message=f"Error loading announcement {announcement.title}: {error}",

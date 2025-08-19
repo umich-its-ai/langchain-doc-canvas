@@ -1,15 +1,19 @@
+from datetime import date
+
+from canvas_langchain.utils.logging import Logger
 from canvasapi.assignment import Assignment
+from canvasapi.course import Course
+from canvasapi.exceptions import CanvasException
 from canvasapi.file import File
 from canvasapi.page import Page
 from canvasapi.paginated_list import PaginatedList
-from canvasapi.course import Course
-from datetime import date
 
 
 class CanvasClientGetters:
-    def __init__(self, canvas, course: Course):
+    def __init__(self, canvas, course: Course, logger: Logger):
         self._canvas = canvas
         self._course = course
+        self.logger = logger
 
     def get_announcements(self) -> PaginatedList:
         return self._canvas.get_announcements(
@@ -41,3 +45,23 @@ class CanvasClientGetters:
 
     def get_syllabus(self) -> str:
         return self._course.syllabus_body
+
+    def get_url_from_canvas(self, uuid: str) -> str:
+        endpoint = f"courses/{self._course.id}/lti_resource_links/lookup_uuid:{uuid}"
+        url = None
+        try:
+            # Get embed URL via UUID
+            response = self._canvas._Canvas__requester.request("GET", endpoint)
+            url = response.json().get("url")
+        except CanvasException as e:
+            self.logger.logStatement(
+                message=f"Error retrieving URL from Canvas for UUID {uuid}: {e}",
+                level="ERROR",
+            )
+        return url
+
+    def get_user_id(self) -> int:
+        return self._canvas.get_current_user().id
+
+    def get_course_id(self) -> int:
+        return self._course.id

@@ -1,6 +1,6 @@
+from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from canvasapi.assignment import Assignment
 from canvasapi.exceptions import CanvasException
-from canvas_langchain.base import BaseSectionLoader, BaseSectionLoaderVars
 from langchain.docstore.document import Document
 
 
@@ -32,16 +32,20 @@ class AssignmentLoader(BaseSectionLoader):
     ) -> list[Document]:
         """Load and format one assignment"""
         assignment_description = ""
+        embed_urls = []
         self.logger.logStatement(
             message=f"Loading assignment: {assignment.name}", level="DEBUG"
         )
+
         try:
             # Custom description from locked module
             if description is not None:
                 assignment_description = description
 
             elif assignment.description:
-                assignment_description = self.parse_html(assignment.description)
+                assignment_description, embed_urls = self.parse_html(
+                    assignment.description
+                )
 
             assignment_content = (
                 f"Name: {assignment.name}\n"
@@ -60,7 +64,7 @@ class AssignmentLoader(BaseSectionLoader):
                 },
             }
 
-            return self.process_data(metadata=metadata)
+            return self.process_data(metadata=metadata, embed_urls=embed_urls)
         except Exception as error:
             self.logger.logStatement(
                 message=f"Error loading assignment {assignment.name}: {error}",

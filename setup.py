@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="canvas_langchain",
-    version="0.9.20",
+    version="0.9.21",
     description="A canvas langchain integration",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -30,6 +30,7 @@ setup(
         "xlrd",
         "markdown",
         "pytz",
+        "LangChainKaltura @ git+https://github.com/tl-its-umich-edu/langchain_kaltura@2025.03.01#egg=LangChainKaltura",
     ],
     python_requires=">=3.10",
 )

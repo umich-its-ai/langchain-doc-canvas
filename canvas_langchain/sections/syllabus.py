@@ -14,7 +14,7 @@ class SyllabusLoader(BaseSectionLoader):
         try:
             syllabus_body = self.canvas_client_extractor.get_syllabus()
             if syllabus_body:
-                syllabus_text = self.parse_html(syllabus_body)
+                syllabus_text, embed_urls = self.parse_html(syllabus_body)
                 syllabus_url = urljoin(self.course_api, "assignments/syllabus")
 
                 metadata = {
@@ -25,7 +25,7 @@ class SyllabusLoader(BaseSectionLoader):
                         "kind": "syllabus",
                     },
                 }
-                return self.process_data(metadata=metadata)
+                return self.process_data(metadata=metadata, embed_urls=embed_urls)
 
         except AttributeError as err:
             self.logger.logStatement(

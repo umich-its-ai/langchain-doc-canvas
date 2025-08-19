@@ -1,10 +1,17 @@
 from typing import Literal
-from langchain.document_loaders.base import BaseLoader
-from langchain.docstore.document import Document
-from pydantic import BaseModel
 
 from canvas_langchain.client import CanvasClient
 from canvas_langchain.utils.logging import Logger
+from langchain.docstore.document import Document
+from langchain.document_loaders.base import BaseLoader
+from pydantic import BaseModel
+
+# compatible with isolated and integrated testing
+try:
+    from django.conf import settings
+
+except ImportError:
+    import settings
 
 
 # Prevents conflicts with other classes in UMGPT - Happy to refactor as needed
@@ -29,8 +36,12 @@ class CanvasLoader(BaseLoader):
         course_id: int,
         index_external_urls: bool = False,
     ):
+        self.should_load_mivideo = True  # Turn into feature flag in next PR
         self.logger = Logger()
-        self.canvas_client = CanvasClient(api_url, api_key, course_id)
+        api_key = getattr(
+            settings, "MIVIDEO_ADMIN_CANVAS_API_KEY", api_key
+        )  # override for mivideo caption access
+        self.canvas_client = CanvasClient(api_url, api_key, course_id, self.logger)
         self.index_external_urls = index_external_urls
         self.course_id = course_id
 
@@ -43,7 +54,7 @@ class CanvasLoader(BaseLoader):
         try:
             available_tabs = self.canvas_client.get_available_tabs()
             loaders = self.canvas_client.get_loaders(
-                index_external_urls=self.index_external_urls, logger=self.logger
+                index_external_urls=self.index_external_urls
             )
 
             for tab_name in available_tabs:
