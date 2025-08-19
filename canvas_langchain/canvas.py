@@ -36,7 +36,7 @@ class CanvasLoader(BaseLoader):
         course_id: int,
         index_external_urls: bool = False,
     ):
-        self.load_mivideo = True  # Turn into feature flag in next PR
+        self.should_load_mivideo = True  # Turn into feature flag in next PR
         self.logger = Logger()
         api_key = getattr(
             settings, "MIVIDEO_ADMIN_CANVAS_API_KEY", api_key

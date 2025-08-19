@@ -16,7 +16,7 @@ def parse_html_for_text_and_urls(
     canvas_client_extractor: CanvasClientGetters,
     html: str,
     logger: Logger,
-    load_mivideo: bool,
+    should_load_mivideo: bool,
 ):
     """Extracts text and a list of embedded URLs from HTML content"""
     bs = BeautifulSoup(html, "lxml")
@@ -24,7 +24,7 @@ def parse_html_for_text_and_urls(
 
     # Urls will be embedded in iframe tags
     embed_urls = []
-    if load_mivideo:
+    if should_load_mivideo:
         iframes = bs.find_all("iframe")
         for iframe in iframes:
             iframe_src_url = iframe.get("src")

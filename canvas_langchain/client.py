@@ -47,7 +47,7 @@ class CanvasClient:
     def get_loaders(
         self,
         index_external_urls: bool,
-        load_mivideo: bool = True,
+        should_load_mivideo: bool = True,
     ) -> dict[str, BaseSectionLoader]:
         mivideo_loader = MiVideoLoader(
             canvas_content_extractor=self.content_extractor,
@@ -59,7 +59,7 @@ class CanvasClient:
             indexed_items=self.indexed_items,
             logger=self.logger,
             mivideo_loader=mivideo_loader,
-            load_mivideo=load_mivideo,
+            should_load_mivideo=should_load_mivideo,
         )
         course_api = urljoin(self.api_url, f"courses/{self._course.id}/")
 

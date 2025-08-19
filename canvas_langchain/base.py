@@ -21,7 +21,7 @@ class BaseSectionLoaderVars:
     indexed_items: set
     logger: Logger
     mivideo_loader: MiVideoLoader
-    load_mivideo: bool
+    should_load_mivideo: bool
 
 
 class BaseSectionLoader(ABC):
@@ -32,7 +32,7 @@ class BaseSectionLoader(ABC):
         self.indexed_items = baseSectionVars.indexed_items
         self.logger = baseSectionVars.logger
         self.mivideo_loader = baseSectionVars.mivideo_loader
-        self.load_mivideo = baseSectionVars.load_mivideo
+        self.should_load_mivideo = baseSectionVars.should_load_mivideo
 
     @abstractmethod
     def load_section(self) -> list[Document]:
@@ -67,7 +67,7 @@ class BaseSectionLoader(ABC):
             canvas_client_extractor=self.canvas_client_extractor,
             html=html,
             logger=self.logger,
-            load_mivideo=self.load_mivideo,
+            should_load_mivideo=self.should_load_mivideo,
         )
 
     def process_data(
@@ -82,7 +82,7 @@ class BaseSectionLoader(ABC):
                     metadata=self._remove_null_bytes(metadata["data"]),
                 )
             )
-        if embed_urls and self.load_mivideo:
+        if embed_urls and self.should_load_mivideo:
             document_arr.extend(
                 load_embed_urls(
                     metadata=metadata,
